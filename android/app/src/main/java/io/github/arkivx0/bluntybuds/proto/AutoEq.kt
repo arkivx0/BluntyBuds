@@ -9,7 +9,8 @@ import kotlin.math.*
  */
 object AutoEq {
     data class Filter(val kind: String, val fc: Double, val gain: Double, val q: Double)
-    class Profile(val model: String, val source: String, val gains: FloatArray)
+    /** A built-in profile. [chip] is the chip family of the measured unit when known (optional 4th TSV column). */
+    class Profile(val model: String, val source: String, val gains: FloatArray, val chip: String? = null)
     private const val FS = 48000.0
     private const val STEP = 0.5
 
@@ -35,6 +36,10 @@ object AutoEq {
     private const val NUM = """([-+]?\d+(?:\.\d+)?)"""
     private val FILTER_RX = Regex("""^\s*Filter\s*\d*\s*:\s*(ON|OFF)\s+([A-Z]+)\s+Fc\s+$NUM\s*Hz\s+Gain\s+$NUM\s*dB(?:\s+Q\s+$NUM)?""", RegexOption.IGNORE_CASE)
     private val GRAPHIC_RX = Regex("""GraphicEQ\s*:(.*)""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+
+    private val PREAMP_RX = Regex("""^\s*Preamp\s*:\s*$NUM\s*dB""", setOf(RegexOption.IGNORE_CASE, RegexOption.MULTILINE))
+    /** The "Preamp: -5.6 dB" line of a ParametricEQ.txt, or null. */
+    fun parsePreamp(text: String): Double? = PREAMP_RX.find(text)?.groupValues?.get(1)?.toDouble()
 
     fun parseParametric(text: String): List<Filter> {
         val list = ArrayList<Filter>()
@@ -79,16 +84,21 @@ object AutoEq {
     /** Round half up to the 0.5 dB UI step and clamp to the device range. */
     fun quantize(x: Double): Float { val q = floor(clamp(x) / STEP + 0.5) * STEP; return if (q == 0.0) 0f else q.toFloat() }
 
-    /** Fit the device's peaking bands to a target (dB at each band centre, level-normalized to its mean). */
-    fun fit(target: DoubleArray): FloatArray {
-        val mean = target.average()
+    /** Shift all bands down by the largest positive gain so no band boosts (avoids clipping). */
+    fun headroom(g: DoubleArray): DoubleArray { val top = g.max(); return if (top > 0) DoubleArray(g.size) { g[it] - top } else g.copyOf() }
+
+    /** Fit the device's peaking bands to a target (dB at each band centre, level-normalized to its mean unless
+     *  [normalizeMean] is false), then shift down so the highest band is <= 0 dB, clamp and quantize. */
+    fun fit(target: DoubleArray, normalizeMean: Boolean = true): FloatArray {
+        val mean = if (normalizeMean) target.average() else 0.0
         val t = DoubleArray(10) { target[it] - mean }
         var g = DoubleArray(10) { clamp(t[it]) }
         repeat(60) {
             val r = DoubleArray(10) { deviceDb(g, EqGrid.FREQS[it].toDouble()) }
             g = DoubleArray(10) { clamp(g[it] + 0.5 * (t[it] - r[it])) }
         }
-        return FloatArray(10) { quantize(g[it]) }
+        val h = headroom(g)
+        return FloatArray(10) { quantize(h[it]) }
     }
 
     /** Fit an AutoEQ GraphicEQ.txt or ParametricEQ.txt file (auto-detected). */
@@ -97,19 +107,36 @@ object AutoEq {
             val p = parseGraphic(text); return fit(DoubleArray(10) { graphicAt(p, EqGrid.FREQS[it].toDouble()) })
         }
         val fl = parseParametric(text)
-        return fit(DoubleArray(10) { parametricAt(fl, EqGrid.FREQS[it].toDouble()) })
+        val pre = parsePreamp(text) ?: return fit(DoubleArray(10) { parametricAt(fl, EqGrid.FREQS[it].toDouble()) })
+        // Honor the file's preamp (absolute levels), then still enforce max <= 0 dB.
+        return fit(DoubleArray(10) { parametricAt(fl, EqGrid.FREQS[it].toDouble()) + pre }, normalizeMean = false)
     }
 
     fun parseProfiles(tsv: String): List<Profile> = tsv.split('\n').mapNotNull { raw ->
         val line = raw.trimEnd('\r')
         if (line.isEmpty() || line[0] == '#') return@mapNotNull null
-        val c = line.split('\t'); if (c.size != 3) return@mapNotNull null
+        val c = line.split('\t'); if (c.size != 3 && c.size != 4) return@mapNotNull null
         val g = c[2].split(',').map { it.toFloat() }
-        if (g.size == 10) Profile(c[0], c[1], g.toFloatArray()) else null
+        if (g.size == 10) Profile(c[0], c[1], g.toFloatArray(), c.getOrNull(3)?.takeIf { it.isNotEmpty() }) else null
     }
 
     /** Exact model-name match ("NC9Pro" does not get the NC9 profile). */
     fun forModel(profiles: List<Profile>, model: String?) = model?.let { m -> profiles.firstOrNull { it.model.equals(m, true) } }
+
+    /**
+     * Profile to suggest for a connected model. One model name (e.g. NC9) can cover several hardware revisions
+     * (BES, WuQi, Bluetrum...), so confident is true only when the device's chip family is known exactly and matches
+     * the chip of the measured unit. Unconfident matches are listed but never auto-selected.
+     */
+    fun suggest(profiles: List<Profile>, m: DeviceModel): Pair<Profile?, Boolean> {
+        if (m.isUnknown) return null to false
+        val p = forModel(profiles, m.name) ?: return null to false
+        val chipKnown = m.chip.isNotEmpty() && m.chip != "?" && '/' !in m.chip
+        return p to (chipKnown && p.chip != null && p.chip.equals(m.chip, true))
+    }
+
+    /** Preset-list label for the suggested profile. */
+    fun suggestLabel(p: Profile, confident: Boolean) = "AutoEQ · ${p.model}" + if (confident) " (this model)" else " (may differ by hardware revision)"
 
     const val ATTRIBUTION = "AutoEQ profiles: AutoEq by Jaakko Pasanen, github.com/jaakkopasanen/AutoEq (MIT License, Copyright (c) 2018-2022 Jaakko Pasanen). Measurements by their respective sources (e.g. Rtings)."
 }

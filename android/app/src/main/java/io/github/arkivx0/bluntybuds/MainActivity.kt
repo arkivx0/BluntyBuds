@@ -358,16 +358,18 @@ class MainActivity : Activity(), BleClient.Listener {
     private fun autoEqName(m: String) = "AutoEQ · $m"
     /** Presets plus AutoEQ profiles; the connected model's profile is listed first. */
     private fun presetMap(): LinkedHashMap<String, FloatArray> {
-        val mine = AutoEq.forModel(autoEqProfiles, if (model.isUnknown) null else model.name)
+        val (mine, sure) = AutoEq.suggest(autoEqProfiles, model)
         val m = LinkedHashMap<String, FloatArray>()
-        mine?.let { m[autoEqName(it.model) + " (this model)"] = it.gains }
+        mine?.let { m[AutoEq.suggestLabel(it, sure)] = it.gains }
         m.putAll(presets.all())
         for (p in autoEqProfiles) if (p !== mine) m[autoEqName(p.model)] = p.gains
         return m
     }
     private fun isFixed(n: String) = presets.isBuiltIn(n) || n.startsWith("AutoEQ")
     private fun importAutoEq() {
-        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("text/*"), RC_AUTOEQ)
+        // Many file managers report AutoEQ .txt files as octet-stream or nothing at all: allow any type, validate the content.
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+            .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/plain", "text/*", "application/octet-stream", "*/*")), RC_AUTOEQ)
     }
     private fun showAbout() {
         AlertDialog.Builder(this).setTitle("About BluntyBuds ${packageManager.getPackageInfo(packageName, 0).versionName}")
@@ -417,8 +419,10 @@ class MainActivity : Activity(), BleClient.Listener {
                     val n = presets.importJson(json); refreshPresets(); toast("Imported $n preset(s)")
                 }
                 RC_AUTOEQ -> {
-                    val txt = contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: return
-                    setEqUi(AutoEq.fitText(txt)); toast("AutoEQ file fitted to 10 bands — tap Apply to send, or Save as a preset")
+                    // Any file type can be picked, so check the content: small, text, and a real AutoEQ file (fitText throws otherwise).
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readNBytesCompat((1 shl 20) + 1) } ?: return
+                    if (bytes.size > (1 shl 20) || bytes.any { it == 0.toByte() }) throw IllegalArgumentException("not an AutoEQ text file")
+                    setEqUi(AutoEq.fitText(bytes.toString(Charsets.UTF_8))); toast("AutoEQ file fitted to 10 bands — tap Apply to send, or Save as a preset")
                 }
                 RC_EXPORT -> {
                     contentResolver.openOutputStream(uri, "wt")?.use { it.write(presets.exportJson().toByteArray()) }
@@ -568,7 +572,9 @@ class MainActivity : Activity(), BleClient.Listener {
         game.visibility = if (f.game) View.VISIBLE else View.GONE
         setControlsEnabled(true)
         showAnc(Conn.ancMode)
-        refreshPresets(presets.lastUsed()?.takeUnless { it.startsWith("AutoEQ") } ?: AutoEq.forModel(autoEqProfiles, if (model.isUnknown) null else model.name)?.let { autoEqName(it.model) + " (this model)" })
+        // Last-used preset wins; otherwise a confident AutoEQ match (never an "may differ by hardware revision" one).
+        val (ae, sure) = AutoEq.suggest(autoEqProfiles, model)
+        refreshPresets(presets.lastUsed()?.takeIf { it in presetMap() } ?: ae?.takeIf { sure }?.let { AutoEq.suggestLabel(it, true) })
         refreshAll()
     }
     override fun onDisconnected() {
@@ -597,4 +603,11 @@ class MainActivity : Activity(), BleClient.Listener {
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+}
+
+/** Reads at most [max] bytes (InputStream.readNBytes needs API 33). */
+private fun java.io.InputStream.readNBytesCompat(max: Int): ByteArray {
+    val out = java.io.ByteArrayOutputStream(); val buf = ByteArray(8192)
+    while (out.size() < max) { val n = read(buf, 0, minOf(buf.size, max - out.size())); if (n < 0) break; out.write(buf, 0, n) }
+    return out.toByteArray()
 }

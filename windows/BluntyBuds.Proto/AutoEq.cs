@@ -10,7 +10,8 @@ namespace BluntyBuds.Proto;
 public static class AutoEq
 {
     public sealed record Filter(string Kind, double Fc, double Gain, double Q);
-    public sealed record Profile(string Model, string Source, float[] Gains);
+    /// <summary>A built-in profile. Chip is the chip family of the measured unit when known (optional 4th TSV column).</summary>
+    public sealed record Profile(string Model, string Source, float[] Gains, string? Chip = null);
     const double Fs = 48000, Step = 0.5;
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -41,6 +42,10 @@ public static class AutoEq
 
     const string Num = @"([-+]?\d+(?:\.\d+)?)";
     static readonly Regex FilterRx = new(@"^\s*Filter\s*\d*\s*:\s*(ON|OFF)\s+([A-Z]+)\s+Fc\s+" + Num + @"\s*Hz\s+Gain\s+" + Num + @"\s*dB(?:\s+Q\s+" + Num + ")?", RegexOptions.IgnoreCase);
+
+    static readonly Regex PreampRx = new(@"^\s*Preamp\s*:\s*" + Num + @"\s*dB", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+    /// <summary>The "Preamp: -5.6 dB" line of a ParametricEQ.txt, or null.</summary>
+    public static double? ParsePreamp(string text) { var m = PreampRx.Match(text); return m.Success ? double.Parse(m.Groups[1].Value, Inv) : null; }
 
     public static List<Filter> ParseParametric(string text)
     {
@@ -92,10 +97,14 @@ public static class AutoEq
     /// <summary>Round half up to the 0.5 dB UI step and clamp to the device range.</summary>
     public static float Quantize(double x) { var q = Math.Floor(Clamp(x) / Step + 0.5) * Step; return q == 0 ? 0f : (float)q; }
 
-    /// <summary>Fit the device's peaking bands to a target (dB at each band centre, level-normalized to its mean).</summary>
-    public static float[] Fit(double[] target)
+    /// <summary>Shift all bands down by the largest positive gain so no band boosts (avoids clipping).</summary>
+    public static double[] Headroom(double[] g) { double top = g.Max(); return top > 0 ? g.Select(x => x - top).ToArray() : (double[])g.Clone(); }
+
+    /// <summary>Fit the device's peaking bands to a target (dB at each band centre, level-normalized to its mean unless
+    /// normalizeMean is false), then shift down so the highest band is &lt;= 0 dB, clamp and quantize.</summary>
+    public static float[] Fit(double[] target, bool normalizeMean = true)
     {
-        double mean = target.Average();
+        double mean = normalizeMean ? target.Average() : 0;
         var t = target.Select(x => x - mean).ToArray();
         var g = t.Select(Clamp).ToArray();
         for (int it = 0; it < 60; it++)
@@ -103,7 +112,7 @@ public static class AutoEq
             var r = EqGrid.Freqs.Select(f => DeviceDb(g, f)).ToArray();
             g = Enumerable.Range(0, 10).Select(i => Clamp(g[i] + 0.5 * (t[i] - r[i]))).ToArray();
         }
-        return g.Select(Quantize).ToArray();
+        return Headroom(g).Select(Quantize).ToArray();
     }
 
     /// <summary>Fit an AutoEQ GraphicEQ.txt or ParametricEQ.txt file (auto-detected).</summary>
@@ -111,7 +120,10 @@ public static class AutoEq
     {
         if (Regex.IsMatch(text, @"GraphicEQ\s*:", RegexOptions.IgnoreCase)) { var p = ParseGraphic(text); return Fit(EqGrid.Freqs.Select(f => GraphicAt(p, f)).ToArray()); }
         var fl = ParseParametric(text);
-        return Fit(EqGrid.Freqs.Select(f => ParametricAt(fl, f)).ToArray());
+        var pre = ParsePreamp(text);
+        if (pre is null) return Fit(EqGrid.Freqs.Select(f => ParametricAt(fl, f)).ToArray());
+        // Honor the file's preamp (absolute levels), then still enforce max <= 0 dB.
+        return Fit(EqGrid.Freqs.Select(f => ParametricAt(fl, f) + pre.Value).ToArray(), normalizeMean: false);
     }
 
     public static List<Profile> ParseProfiles(string tsv)
@@ -122,9 +134,9 @@ public static class AutoEq
             var line = raw.TrimEnd('\r');
             if (line.Length == 0 || line[0] == '#') continue;
             var c = line.Split('\t');
-            if (c.Length != 3) continue;
+            if (c.Length is not (3 or 4)) continue;
             var g = c[2].Split(',').Select(s => float.Parse(s, Inv)).ToArray();
-            if (g.Length == 10) list.Add(new(c[0], c[1], g));
+            if (g.Length == 10) list.Add(new(c[0], c[1], g, c.Length == 4 && c[3].Length > 0 ? c[3] : null));
         }
         return list;
     }
@@ -146,6 +158,23 @@ public static class AutoEq
 
     /// <summary>Profile for an exact model name (e.g. "NC9"; "NC9Pro" does not match).</summary>
     public static Profile? For(string? model) => model is null ? null : Profiles.FirstOrDefault(p => p.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Profile to suggest for a connected model. One model name (e.g. NC9) can cover several hardware revisions
+    /// (BES, WuQi, Bluetrum...), so Confident is true only when the device's chip family is known exactly and matches
+    /// the chip of the measured unit. Unconfident matches are listed but never auto-selected.
+    /// </summary>
+    public static (Profile? Profile, bool Confident) Suggest(DeviceModel m, IReadOnlyList<Profile>? profiles = null)
+    {
+        if (m.IsUnknown) return (null, false);
+        var p = (profiles ?? Profiles).FirstOrDefault(x => x.Model.Equals(m.Name, StringComparison.OrdinalIgnoreCase));
+        if (p is null) return (null, false);
+        bool chipKnown = m.Chip.Length > 0 && m.Chip != "?" && !m.Chip.Contains('/');
+        return (p, chipKnown && p.Chip is not null && p.Chip.Equals(m.Chip, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Preset-list label for the suggested profile.</summary>
+    public static string SuggestLabel(Profile p, bool confident) => "AutoEQ · " + p.Model + (confident ? " (this model)" : " (may differ by hardware revision)");
 
     public const string Attribution = "AutoEQ profiles: AutoEq by Jaakko Pasanen, github.com/jaakkopasanen/AutoEq (MIT License, Copyright (c) 2018-2022 Jaakko Pasanen). Measurements by their respective sources (e.g. Rtings).";
 }

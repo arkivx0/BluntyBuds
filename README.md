@@ -16,7 +16,8 @@ Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
 - **`BluntyBuds-<version>-setup.exe`** (installer, recommended): installs for your user without admin rights
   (into `%LOCALAPPDATA%\Programs\BluntyBuds`; an all-users install is offered too), adds a Start menu shortcut,
   an optional desktop icon, and an uninstaller in Apps & features. Newer versions upgrade in place.
-  Uninstalling removes the Start with Windows entry; your settings and presets are kept unless you choose to delete them.
+  Uninstalling removes the Start with Windows entry and crash log and only closes the installed copy (a portable copy
+  running elsewhere is left alone); your settings and presets are kept unless you choose to delete them.
 - **`BluntyBuds-<version>-win-x64.exe`** (portable): a single self-contained exe, no install; run it from any folder.
 
 Both need Windows 10 (19041) or later, x64. No .NET install required.
@@ -27,8 +28,9 @@ Both need Windows 10 (19041) or later, x64. No .NET install required.
 - Noise control (Off / Noise cancelling / Ambient / Custom depth 1–10) on supported models
 - Game mode, 10-band EQ with presets (import/export JSON), touch-control mapping, L/R balance
 - AutoEQ: built-in correction profiles for models measured by the AutoEq project (the connected model's
-  profile is listed first; all are selectable), and "Import AutoEQ file" for any AutoEQ `ParametricEQ.txt`
-  or `GraphicEQ.txt`, fitted to the 10 bands offline
+  profile is listed first, marked "may differ by hardware revision" unless the chip matches the measured unit;
+  all are selectable), and "Import AutoEQ file" for any AutoEQ `ParametricEQ.txt` or `GraphicEQ.txt`, fitted
+  to the 10 bands offline. Profiles never boost: the highest band is at most 0 dB to avoid clipping
 - "Find earbuds" chirp
 - Windows: tray icon with battery, tray menu, low-battery toast, auto-reconnect, minimize to tray,
   optional Start with Windows, global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered EQ

@@ -10,6 +10,7 @@ public sealed class Settings
     public bool MinimizeToTray { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
     public bool CloseHintShown { get; set; }
+    public string? LastPreset { get; set; }
     public int LowBatteryPercent { get; set; } = 20;
     public Dictionary<string, float[]> EqByDevice { get; set; } = new();
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.1
+- AutoEQ headroom: profiles no longer boost. Every fit (built-in profiles and imported files) is shifted down so the highest band is at most 0 dB, then clamped to ±12 dB and quantized to 0.5 dB. Built-in profiles regenerated (they boosted up to +7.5 dB with no preamp before).
+- Import AutoEQ file: the ParametricEQ.txt "Preamp" line is now honored; the 0 dB ceiling is still enforced.
+- AutoEQ suggestions: one model name (e.g. NC9) covers several hardware revisions (BES, WuQi, Bluetrum...). A profile is only called "(this model)" and auto-selected when the earbuds' chip family matches the measured unit; otherwise it is listed first as "AutoEQ · NC9 (may differ by hardware revision)" and not selected. Every profile can still be picked manually.
+- Windows: the last-used preset is remembered and selected again on start and on connect, as on Android.
+- Android: "Import AutoEQ file" can pick any file type (some file managers report .txt as octet-stream); the content is checked instead.
+- Windows installer: the uninstaller and upgrades only close BluntyBuds.exe running from the install folder; a portable copy elsewhere is left alone. Uninstall deletes only crash.log from %LOCALAPPDATA%\BluntyBuds (the folder only if empty); settings and presets are still kept unless you choose to delete them.
+
 ## 1.4.0
 - AutoEQ: built-in correction profiles, pre-fitted to the 10-band EQ from AutoEq (MIT) measurements, for NC2, NC7, NC9, T6, T10 and T12. The connected model's profile is listed first in the presets ("AutoEQ · NC9 (this model)"); every profile can be picked manually and applied like a normal preset.
 - Import AutoEQ file: load an AutoEQ ParametricEQ.txt (PK / LSC / HSC filters) or GraphicEQ.txt, fitted offline to the 10 bands (±12 dB, 0.5 dB steps). Save it as a preset if you like.

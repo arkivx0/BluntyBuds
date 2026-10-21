@@ -1,9 +1,9 @@
 ; BluntyBuds Windows installer (Inno Setup 6)
-; Build:  iscc /DAppVersion=1.4.0 /DSourceExe=dist\BluntyBuds.exe BluntyBuds.iss
+; Build:  iscc /DAppVersion=1.4.1 /DSourceExe=dist\BluntyBuds.exe BluntyBuds.iss
 ; Paths are relative to this script's folder (windows\installer).
 
 #ifndef AppVersion
-  #define AppVersion "1.4.0"
+  #define AppVersion "1.4.1"
 #endif
 #ifndef SourceExe
   #define SourceExe "dist\BluntyBuds.exe"
@@ -33,6 +33,8 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=yes
+; Restart Manager only considers files being replaced in {app}
+CloseApplicationsFilter=BluntyBuds.exe
 RestartApplications=no
 LicenseFile=..\..\LICENSE
 
@@ -52,34 +54,66 @@ Name: "{autodesktop}\BluntyBuds"; Filename: "{app}\BluntyBuds.exe"; Tasks: deskt
 [Run]
 Filename: "{app}\BluntyBuds.exe"; Description: "{cm:LaunchProgram,BluntyBuds}"; Flags: nowait postinstall skipifsilent
 
-[UninstallRun]
-Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM BluntyBuds.exe"; Flags: runhidden; RunOnceId: "KillBluntyBuds"
-
-[UninstallDelete]
-Type: filesandordirs; Name: "{localappdata}\BluntyBuds"
-
 [Code]
-procedure KillRunningApp();
-var Rc: Integer;
+{ Only BluntyBuds.exe processes whose image path is inside the install folder are closed. A portable copy running from
+  another folder is never touched (no blanket "taskkill /IM"). Uses WMI Win32_Process.ExecutablePath; if WMI
+  is unavailable nothing is killed and Inno Setup's normal in-use handling (Restart Manager on install,
+  delete-on-reboot on uninstall) applies. }
+function IsInDir(const Path, Dir: String): Boolean;
+var D: String;
 begin
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM BluntyBuds.exe', '', SW_HIDE, ewWaitUntilTerminated, Rc);
+  D := Lowercase(AddBackslash(Dir));
+  Result := (Path <> '') and (Pos(D, Lowercase(Path)) = 1);
+end;
+
+procedure CloseAppInDir(const Dir: String);
+var Locator, Wmi, Procs, P: Variant; I, Count, Rc: Integer; ExePath: String;
+begin
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Wmi := Locator.ConnectServer('.', 'root\CIMV2');
+    Procs := Wmi.ExecQuery('SELECT ProcessId, ExecutablePath FROM Win32_Process WHERE Name = ''BluntyBuds.exe''');
+    Count := Procs.Count;
+    for I := 0 to Count - 1 do
+    begin
+      P := Procs.ItemIndex(I);
+      ExePath := '';
+      if not VarIsNull(P.ExecutablePath) then ExePath := P.ExecutablePath;
+      if IsInDir(ExePath, Dir) then
+      begin
+        Log('Closing ' + ExePath + ' (PID ' + IntToStr(P.ProcessId) + ')');
+        Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /PID ' + IntToStr(P.ProcessId), '', SW_HIDE, ewWaitUntilTerminated, Rc);
+      end
+      else
+        Log('Leaving BluntyBuds.exe outside the install folder alone: ' + ExePath);
+    end;
+  except
+    Log('WMI process check unavailable: ' + GetExceptionMessage);
+  end;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  KillRunningApp();
+  { Upgrade: close only the copy installed in the target folder }
+  CloseAppInDir(ExpandConstant('{app}'));
   Result := '';
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var LocalDir: String;
 begin
   if CurUninstallStep = usUninstall then
   begin
+    CloseAppInDir(ExpandConstant('{app}'));
     { Remove the Start-with-Windows entry the app may have created }
     RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'BluntyBuds');
   end;
   if CurUninstallStep = usPostUninstall then
   begin
+    { %LOCALAPPDATA%\BluntyBuds only holds crash.log: delete that file, and the folder only if it is then empty }
+    LocalDir := ExpandConstant('{localappdata}\BluntyBuds');
+    DeleteFile(LocalDir + '\crash.log');
+    RemoveDir(LocalDir);
     { Settings and presets are kept unless the user opts in (never in silent mode) }
     if (not UninstallSilent) and DirExists(ExpandConstant('{userappdata}\BluntyBuds')) then
       if MsgBox('Also delete your BluntyBuds settings and presets?', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then

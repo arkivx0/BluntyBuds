@@ -287,7 +287,7 @@ public sealed class MainWindow : Window
         eqBody.Children.Add(eqGrid);
         var eqCard = Card(eqBody, "Equalizer · ±12 dB");
         Grid.SetRow(eqCard, 1); _controls.Children.Add(eqCard);
-        RefreshPresets();
+        RefreshPresets(_cfg.LastPreset);
 
         // ---- right column: touch, balance, find ----
         var touch = new Grid();
@@ -488,12 +488,14 @@ public sealed class MainWindow : Window
     }
     // AutoEQ profiles are listed with the presets; the connected model's own profile comes first.
     static string AutoEqName(string m) => "AutoEQ · " + m;
-    AutoEq.Profile? MyAutoEq => _model.IsUnknown ? null : AutoEq.For(_model.Name);
+    // A model name can cover several hardware revisions: only a confident match is called "this model" and auto-selected.
+    (AutoEq.Profile? P, bool Confident) MyAutoEqMatch => AutoEq.Suggest(_model);
+    AutoEq.Profile? MyAutoEq => MyAutoEqMatch.P;
     Dictionary<string, float[]> PresetMap()
     {
         var d = new Dictionary<string, float[]>();
         var mine = MyAutoEq;
-        if (mine is not null) d[AutoEqName(mine.Model) + " (this model)"] = mine.Gains;
+        if (mine is not null) d[AutoEq.SuggestLabel(mine, MyAutoEqMatch.Confident)] = mine.Gains;
         foreach (var kv in _presets.All()) d[kv.Key] = kv.Value;
         foreach (var p in AutoEq.Profiles) if (!ReferenceEquals(p, mine)) d[AutoEqName(p.Model)] = p.Gains;
         return d;
@@ -662,7 +664,11 @@ public sealed class MainWindow : Window
         _ancBox.Visibility = f.Anc && _ble.Protocol == Protocol.A ? Visibility.Visible : Visibility.Collapsed;
         _balBox.Visibility = f.Balance && _ble.Protocol == Protocol.A ? Visibility.Visible : Visibility.Collapsed;
         _game.Visibility = f.Game ? Visibility.Visible : Visibility.Collapsed;
-        RefreshPresets(MyAutoEq is { } ae ? AutoEqName(ae.Model) + " (this model)" : null);
+        // Same as Android: the last-used preset wins; otherwise a confident AutoEQ match; otherwise the first entry.
+        var names = PresetMap().Keys;
+        var last = _cfg.LastPreset is { } lp && names.Contains(lp) ? lp : null;
+        var (ae, sure) = MyAutoEqMatch;
+        RefreshPresets(last ?? (ae is not null && sure ? AutoEq.SuggestLabel(ae, true) : null));
     }
 
     async Task SendAnc(AncMode m)
@@ -751,9 +757,17 @@ public sealed class MainWindow : Window
     {
         var names = PresetMap().Keys.ToList();
         _presetBox.ItemsSource = names;
-        _presetBox.SelectedItem = select ?? names.FirstOrDefault();
+        _presetBox.SelectedItem = select is not null && names.Contains(select) ? select : names.FirstOrDefault();
     }
-    void LoadPreset() { if (_presetBox.SelectedItem is string n && PresetMap().TryGetValue(n, out var g)) { SetEq(g); _status.Text = $"Loaded \"{n}\" — click Apply to send."; } }
+    void LoadPreset()
+    {
+        if (_presetBox.SelectedItem is string n && PresetMap().TryGetValue(n, out var g))
+        {
+            SetEq(g);
+            if (!_demo) { _cfg.LastPreset = n; _cfg.Save(); }
+            _status.Text = $"Loaded \"{n}\" — click Apply to send.";
+        }
+    }
     void SavePreset()
     {
         var tb = new TextBox { Width = 220 };

@@ -38,8 +38,14 @@ def biquad_db(kind, fc, gain, q, f):
 NUM = r"([-+]?\d+(?:\.\d+)?)"
 
 
+def parse_preamp(text):
+    """The 'Preamp: -5.6 dB' line of a ParametricEQ.txt, or None."""
+    m = re.search(r"^\s*Preamp\s*:\s*" + NUM + r"\s*dB", text, re.I | re.M)
+    return float(m.group(1)) if m else None
+
+
 def parse_parametric(text):
-    """AutoEQ ParametricEQ.txt -> list of (kind, fc, gain, q). Preamp is ignored (levels are normalized)."""
+    """AutoEQ ParametricEQ.txt -> list of (kind, fc, gain, q). The Preamp line is read by parse_preamp."""
     filters = []
     for line in text.splitlines():
         m = re.match(r"\s*Filter\s*\d*\s*:\s*(ON|OFF)\s+([A-Z]+)\s+Fc\s+" + NUM + r"\s*Hz\s+Gain\s+" + NUM + r"\s*dB(?:\s+Q\s+" + NUM + ")?", line, re.I)
@@ -91,16 +97,23 @@ def device_db(gains, f):
     return sum(biquad_db("PK", FREQS[j], gains[j], QS[j], f) for j in range(10) if gains[j] != 0)
 
 
-def fit(target):
+def headroom(g):
+    """Shift all bands down by the largest positive gain so no band boosts (avoids clipping)."""
+    top = max(g)
+    return [x - top for x in g] if top > 0 else list(g)
+
+
+def fit(target, normalize_mean=True):
     """target: 10 dB values at FREQS. Returns 10 gains so the device's peaking bands
-    hit the target (minus its mean) at the band centres, clamped and quantized."""
-    mean = sum(target) / 10
+    hit the target (minus its mean unless normalize_mean is False) at the band centres,
+    then shifted down so the highest band is <= 0 dB, clamped and quantized."""
+    mean = sum(target) / 10 if normalize_mean else 0.0
     t = [x - mean for x in target]
     g = [max(MIN_DB, min(MAX_DB, x)) for x in t]
     for _ in range(60):
         r = [device_db(g, f) for f in FREQS]
         g = [max(MIN_DB, min(MAX_DB, g[i] + 0.5 * (t[i] - r[i]))) for i in range(10)]
-    return [quantize(x) for x in g]
+    return [quantize(x) for x in headroom(g)]
 
 
 def quantize(x):
@@ -115,4 +128,8 @@ def fit_text(text):
         pts = parse_graphic(text)
         return fit([graphic_at(pts, f) for f in FREQS])
     fl = parse_parametric(text)
-    return fit([parametric_at(fl, f) for f in FREQS])
+    pre = parse_preamp(text)
+    if pre is None:
+        return fit([parametric_at(fl, f) for f in FREQS])
+    # Honor the file's preamp (absolute levels), then still enforce max <= 0 dB.
+    return fit([parametric_at(fl, f) + pre for f in FREQS], normalize_mean=False)

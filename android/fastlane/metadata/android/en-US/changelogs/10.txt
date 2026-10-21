@@ -1,0 +1,3 @@
+- AutoEQ profiles and imported files no longer boost (highest band <= 0 dB); the file's Preamp is honored.
+- AutoEQ profile is only auto-selected when the hardware revision matches; otherwise marked "may differ by hardware revision".
+- Import AutoEQ file accepts any file type and checks the content.
