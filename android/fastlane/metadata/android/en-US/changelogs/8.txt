@@ -1,0 +1,1 @@
+- Android: the app no longer draws under the status bar, camera cutout or navigation bar on Android 15 (edge-to-edge), so the header and Close button are reachable. Bar icons stay light on the dark background.

@@ -1,0 +1,3 @@
+- AutoEQ: built-in correction profiles for NC2, NC7, NC9, T6, T10 and T12, pre-fitted to the 10-band EQ.
+- Import AutoEQ ParametricEQ.txt or GraphicEQ.txt files, fitted offline to the 10 bands.
+- About section with AutoEq attribution and license.

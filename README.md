@@ -7,6 +7,8 @@ No internet permission, no account, no analytics, no auto-update.
 
 Works with TOZO NC9 and A1; not affiliated with or endorsed by TOZO.
 
+![BluntyBuds on Windows (demo mode, made-up data)](docs/hero.png)
+
 ## Features
 - Model auto-detection; only supported controls are shown
 - Battery and firmware readout

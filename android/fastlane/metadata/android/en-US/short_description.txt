@@ -1,0 +1,1 @@
+Unofficial offline controller for TOZO earbuds: ANC, EQ, touch controls
