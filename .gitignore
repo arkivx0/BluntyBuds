@@ -1,0 +1,27 @@
+# --- never publish ---
+# local research files
+/src/
+/x/
+*.xapk
+*.apk
+/dist/
+# private research notes / probe output (contain real device data)
+/REPORT.md
+probe*.txt
+*.log
+# signing material
+*.jks
+*.keystore
+keystore.properties
+local.properties
+# --- build output ---
+build/
+.gradle/
+bin/
+obj/
+/windows/publish/
+/windows/Probe/out/
+/*.png
+# screenshots in the root only; app icons under android/app/src/main/res are kept
+/private/
+!gradle/wrapper/gradle-wrapper.jar

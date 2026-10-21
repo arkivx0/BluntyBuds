@@ -1,0 +1,13 @@
+<Project>
+  <!-- Reproducible, path-free builds: no build-machine paths in binaries or symbols. -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <PathMap>$(MSBuildProjectDirectory)=./$(MSBuildProjectName)</PathMap>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Company>BluntyBuds contributors</Company>
+    <Product>BluntyBuds</Product>
+  </PropertyGroup>
+</Project>
