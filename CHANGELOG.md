@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.3
+- Android: the app no longer draws under the status bar, camera cutout or navigation bar on Android 15 (edge-to-edge), so the header and Close button are reachable. Bar icons stay light on the dark background.
+
 ## 1.3.2
 - Android: a Close button (top right) and the back button now disconnect the earbuds, stop scanning, cancel auto-reconnect and close the app. The Quick Settings tile still connects on demand.
 - Windows: a Quit button in the main window. The "still running in the tray" hint shows once per session instead of only once ever.

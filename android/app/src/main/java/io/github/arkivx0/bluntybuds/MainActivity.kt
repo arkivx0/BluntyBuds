@@ -17,6 +17,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -86,6 +88,7 @@ class MainActivity : Activity(), BleClient.Listener {
         tone = Tone(this); presets = Presets(this)
         window.statusBarColor = BG; window.navigationBarColor = BG
         setContentView(buildUi())
+        lightBarIcons()
         Conn.listeners.add(this)
         requestPerms()
         if (hasPerms()) afterPerms()
@@ -304,7 +307,37 @@ class MainActivity : Activity(), BleClient.Listener {
         root.addView(card(title("App"), auto, notif,
             text("Quick Settings: add the “Noise” tile to cycle Off → Noise cancel → Ambient.", 11f, DIM).apply { setPadding(0, dp(4), 0, 0) }))
         setControlsEnabled(false)
-        return ScrollView(this).apply { setBackgroundColor(BG); addView(root) }
+        return ScrollView(this).apply {
+            setBackgroundColor(BG); addView(root)
+            // Android 15 (targetSdk 35) draws edge-to-edge: keep the content clear of the status bar, the
+            // camera cutout and the navigation / gesture bar. The dark background still fills behind them.
+            clipToPadding = false
+            setOnApplyWindowInsetsListener { v, insets -> val (l, t, r, b) = barInsets(insets); v.setPadding(l, t, r, b); insets }
+            requestApplyInsets()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun barInsets(insets: WindowInsets): IntArray =
+        if (Build.VERSION.SDK_INT >= 30) {
+            val i = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            intArrayOf(i.left, i.top, i.right, i.bottom)
+        } else {
+            val c = insets.displayCutout
+            intArrayOf(maxOf(insets.systemWindowInsetLeft, c?.safeInsetLeft ?: 0), maxOf(insets.systemWindowInsetTop, c?.safeInsetTop ?: 0),
+                maxOf(insets.systemWindowInsetRight, c?.safeInsetRight ?: 0), maxOf(insets.systemWindowInsetBottom, c?.safeInsetBottom ?: 0))
+        }
+
+    /** Light (white) status and navigation bar icons on the dark background. */
+    @Suppress("DEPRECATION")
+    private fun lightBarIcons() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.insetsController?.setSystemBarsAppearance(0,
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
+        } else {
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and
+                (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR).inv()
+        }
     }
 
     private fun setControlsEnabled(on: Boolean) {
