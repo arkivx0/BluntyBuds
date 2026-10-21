@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0
+- AutoEQ: built-in correction profiles, pre-fitted to the 10-band EQ from AutoEq (MIT) measurements, for NC2, NC7, NC9, T6, T10 and T12. The connected model's profile is listed first in the presets ("AutoEQ · NC9 (this model)"); every profile can be picked manually and applied like a normal preset.
+- Import AutoEQ file: load an AutoEQ ParametricEQ.txt (PK / LSC / HSC filters) or GraphicEQ.txt, fitted offline to the 10 bands (±12 dB, 0.5 dB steps). Save it as a preset if you like.
+- About section with AutoEq attribution and license.
+- Generator script (tools/autoeq) and parser/fitting unit tests on both platforms.
+
 ## 1.3.3
 - Android: the app no longer draws under the status bar, camera cutout or navigation bar on Android 15 (edge-to-edge), so the header and Close button are reachable. Bar icons stay light on the dark background.
 

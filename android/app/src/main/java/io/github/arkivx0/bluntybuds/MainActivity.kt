@@ -35,7 +35,7 @@ class MainActivity : Activity(), BleClient.Listener {
         const val BG = 0xFF0E0F12.toInt(); const val CARD = 0xFF1A1C21.toInt(); const val CTL = 0xFF262931.toInt()
         const val FG = 0xFFE6E8EE.toInt(); const val DIM = 0xFF8C93A3.toInt(); const val ACCENT = 0xFF3DD6B5.toInt()
         const val ACCENT_FG = 0xFF0B1A17.toInt()
-        const val RC_IMPORT = 41; const val RC_EXPORT = 42
+        const val RC_IMPORT = 41; const val RC_EXPORT = 42; const val RC_AUTOEQ = 43
     }
     private val ble get() = Conn.ble
     private lateinit var tone: Tone
@@ -194,7 +194,7 @@ class MainActivity : Activity(), BleClient.Listener {
 
         // ---- header ----
         root.addView(row(text("BluntyBuds", 20f, ACCENT, true), space(10), weight(text("offline · no account · no analytics", 11f, DIM)),
-            btn("✕  Close") { quit() }.apply { contentDescription = "Close BluntyBuds"; (layoutParams as LinearLayout.LayoutParams).marginEnd = 0 }))
+            btn("About") { showAbout() }, btn("✕  Close") { quit() }.apply { contentDescription = "Close BluntyBuds"; (layoutParams as LinearLayout.LayoutParams).marginEnd = 0 }))
         deviceSpinner = spinner(listOf("(no devices yet)"))
         showAll = CheckBox(this).apply {
             text = "All"; setTextColor(DIM); textSize = 12f; buttonTintList = ColorStateList.valueOf(ACCENT)
@@ -265,7 +265,7 @@ class MainActivity : Activity(), BleClient.Listener {
         controls.addView(card(
             row(weight(title("Equalizer · ±12 dB")), btn("Flat") { setEqUi(FloatArray(10)) }, btn("Apply", accent = true) { sendEq() }),
             row(weight(presetSpinner), space(6), btn("Load") { loadPreset() }, btn("Save") { savePresetDialog() }, btn("Del") { deletePreset() }).apply { setPadding(0, dp(8), 0, 0) },
-            row(btn("Import presets") { importPresets() }, btn("Export presets") { exportPresets() }).apply { setPadding(0, dp(6), 0, 0) },
+            row(btn("Import") { importPresets() }, btn("Export") { exportPresets() }, btn("Import AutoEQ file") { importAutoEq() }).apply { setPadding(0, dp(6), 0, 0) },
             eqRow))
         refreshPresets()
 
@@ -351,27 +351,52 @@ class MainActivity : Activity(), BleClient.Listener {
     private fun setEqUi(g: FloatArray) { for (i in 0 until 10) eqBars[i].progress = Math.round(g[i].coerceIn(-12f, 12f) * 2) + 24 }
     private fun eqUi() = FloatArray(10) { gainOf(it) }
 
+    // ----- AutoEQ (built-in profiles from assets, fitted offline at dev time) -----
+    private val autoEqProfiles by lazy {
+        try { AutoEq.parseProfiles(assets.open("autoeq_profiles.tsv").use { it.readBytes().toString(Charsets.UTF_8) }) } catch (e: Exception) { emptyList() }
+    }
+    private fun autoEqName(m: String) = "AutoEQ · $m"
+    /** Presets plus AutoEQ profiles; the connected model's profile is listed first. */
+    private fun presetMap(): LinkedHashMap<String, FloatArray> {
+        val mine = AutoEq.forModel(autoEqProfiles, if (model.isUnknown) null else model.name)
+        val m = LinkedHashMap<String, FloatArray>()
+        mine?.let { m[autoEqName(it.model) + " (this model)"] = it.gains }
+        m.putAll(presets.all())
+        for (p in autoEqProfiles) if (p !== mine) m[autoEqName(p.model)] = p.gains
+        return m
+    }
+    private fun isFixed(n: String) = presets.isBuiltIn(n) || n.startsWith("AutoEQ")
+    private fun importAutoEq() {
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("text/*"), RC_AUTOEQ)
+    }
+    private fun showAbout() {
+        AlertDialog.Builder(this).setTitle("About BluntyBuds ${packageManager.getPackageInfo(packageName, 0).versionName}")
+            .setMessage("Unofficial offline earbud controller. No internet permission, no account, no analytics, no auto-update. MIT License.\n\n" +
+                AutoEq.ATTRIBUTION + "\n\nAutoEq is MIT licensed: permission is granted, free of charge, to use, copy, modify and distribute it, provided the copyright and permission notice are included. It is provided \"as is\", without warranty of any kind.\n\nThe AutoEQ profile-fitting idea was inspired by the tozo-eq project (github.com/vvr3ddy/tozo-eq).")
+            .setPositiveButton("OK", null).show()
+    }
+
     private fun refreshPresets(select: String? = null) {
-        val names = presets.all().keys.toList()
+        val names = presetMap().keys.toList()
         presetSpinner.adapter = darkAdapter(names)
         val want = select ?: presets.lastUsed()
         names.indexOf(want).takeIf { it >= 0 }?.let { presetSpinner.setSelection(it) }
     }
     private fun loadPreset() {
         val n = presetSpinner.selectedItem as? String ?: return
-        presets.all()[n]?.let { setEqUi(it); presets.setLastUsed(n); toast("Loaded \"$n\" — tap Apply to send") }
+        presetMap()[n]?.let { setEqUi(it); presets.setLastUsed(n); toast("Loaded \"$n\" — tap Apply to send") }
     }
     private fun savePresetDialog() {
         val et = EditText(this).apply { hint = "Preset name" }
         AlertDialog.Builder(this).setTitle("Save EQ preset").setView(et)
             .setPositiveButton("Save") { _, _ ->
                 val n = et.text.toString().trim()
-                if (n.isEmpty() || presets.isBuiltIn(n)) toast("Pick a new name") else { presets.save(n, eqUi()); refreshPresets(n) }
+                if (n.isEmpty() || isFixed(n)) toast("Pick a new name") else { presets.save(n, eqUi()); refreshPresets(n) }
             }.setNegativeButton("Cancel", null).show()
     }
     private fun deletePreset() {
         val n = presetSpinner.selectedItem as? String ?: return
-        if (presets.isBuiltIn(n)) { toast("Built-in presets can't be deleted"); return }
+        if (isFixed(n)) { toast("Built-in presets can't be deleted"); return }
         presets.delete(n); refreshPresets()
     }
     private fun importPresets() {
@@ -390,6 +415,10 @@ class MainActivity : Activity(), BleClient.Listener {
                 RC_IMPORT -> {
                     val json = contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: return
                     val n = presets.importJson(json); refreshPresets(); toast("Imported $n preset(s)")
+                }
+                RC_AUTOEQ -> {
+                    val txt = contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: return
+                    setEqUi(AutoEq.fitText(txt)); toast("AutoEQ file fitted to 10 bands — tap Apply to send, or Save as a preset")
                 }
                 RC_EXPORT -> {
                     contentResolver.openOutputStream(uri, "wt")?.use { it.write(presets.exportJson().toByteArray()) }
@@ -539,6 +568,7 @@ class MainActivity : Activity(), BleClient.Listener {
         game.visibility = if (f.game) View.VISIBLE else View.GONE
         setControlsEnabled(true)
         showAnc(Conn.ancMode)
+        refreshPresets(presets.lastUsed()?.takeUnless { it.startsWith("AutoEQ") } ?: AutoEq.forModel(autoEqProfiles, if (model.isUnknown) null else model.name)?.let { autoEqName(it.model) + " (this model)" })
         refreshAll()
     }
     override fun onDisconnected() {

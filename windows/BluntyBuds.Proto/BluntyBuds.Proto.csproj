@@ -4,4 +4,5 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <ItemGroup><EmbeddedResource Include="autoeq_profiles.tsv" LogicalName="BluntyBuds.Proto.autoeq_profiles.tsv" /></ItemGroup>
 </Project>

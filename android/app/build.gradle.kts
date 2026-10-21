@@ -16,8 +16,8 @@ android {
         applicationId = "io.github.arkivx0.bluntybuds"
         minSdk = 29
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.3.3"
+        versionCode = 9
+        versionName = "1.4.0"
     }
     signingConfigs {
         if (ksFile != null) create("release") {

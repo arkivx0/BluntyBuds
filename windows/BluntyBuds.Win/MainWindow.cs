@@ -192,6 +192,8 @@ public sealed class MainWindow : Window
         quit.ToolTip = "Quit BluntyBuds (closing the window only hides it to the tray)";
         quit.Margin = new Thickness(12, 0, 0, 0);
         DockPanel.SetDock(quit, Dock.Right); header.Children.Add(quit);
+        var about = B("About", (_, _) => ShowAbout()); about.Margin = new Thickness(6, 0, 0, 0);
+        DockPanel.SetDock(about, Dock.Right); header.Children.Add(about);
         foreach (var c in actions.Children.OfType<Button>())
             c.ToolTip = (c.Content as string) switch { "Scan" => "Scan 12 s for advertising earbuds", "⟳" => "Refresh paired devices", _ => null };
         header.Children.Add(Row(title, actions));
@@ -256,7 +258,7 @@ public sealed class MainWindow : Window
         _controls.Children.Add(stripCard);
 
         // ---- EQ card (left) ----
-        var eqGrid = new UniformGrid { Columns = 10, Height = 230 };
+        var eqGrid = new UniformGrid { Columns = 10, Height = 210 };
         for (int i = 0; i < 10; i++)
         {
             int k = i;
@@ -275,7 +277,8 @@ public sealed class MainWindow : Window
         _presetBox.Width = 130;
         var eqTools = WrapRow(_presetBox, new Border { Width = 6 }, B("Load", (_, _) => LoadPreset(), small: true), B("Save…", (_, _) => SavePreset(), small: true),
             B("Delete", (_, _) => DeletePreset(), small: true), B("Flat", (_, _) => SetEq(new float[10]), small: true),
-            B("Import", (_, _) => ImportPresets(), small: true), B("Export", (_, _) => ExportPresets(), small: true), _restoreEq);
+            B("Import", (_, _) => ImportPresets(), small: true), B("Export", (_, _) => ExportPresets(), small: true), _restoreEq,
+            Tip(B("AutoEQ file…", (_, _) => ImportAutoEq(), small: true), "Import an AutoEQ ParametricEQ.txt or GraphicEQ.txt and fit it to the 10 bands"));
         eqTools.Margin = new Thickness(0, 0, 0, 8);
         var eqBody = new DockPanel();
         DockPanel.SetDock(eqTools, Dock.Top); eqBody.Children.Add(eqTools);
@@ -464,6 +467,38 @@ public sealed class MainWindow : Window
         }
         catch (Exception ex) { _status.Text = "Import failed: " + ex.Message; }
     }
+    static Button Tip(Button b, string t) { b.ToolTip = t; return b; }
+    void ImportAutoEq()
+    {
+        try
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "AutoEQ ParametricEQ / GraphicEQ (*.txt)|*.txt|All files|*.*" };
+            if (dlg.ShowDialog(this) != true) return;
+            SetEq(AutoEq.FitText(File.ReadAllText(dlg.FileName)));
+            _status.Text = $"Fitted {Path.GetFileName(dlg.FileName)} to 10 bands — click Apply to send, or Save… as a preset.";
+        }
+        catch (Exception ex) { _status.Text = "AutoEQ import failed: " + ex.Message; }
+    }
+    void ShowAbout()
+    {
+        var v = typeof(MainWindow).Assembly.GetName().Version;
+        MessageBox.Show(this, $"BluntyBuds {v?.ToString(3)}\nUnofficial offline earbud controller. No internet access, no account, no analytics, no auto-update. MIT License.\n\n"
+            + AutoEq.Attribution + "\n\nAutoEq is MIT licensed: permission is granted, free of charge, to use, copy, modify and distribute it, provided the copyright and permission notice are included. It is provided \"as is\", without warranty of any kind."
+            + "\n\nThe AutoEQ profile-fitting idea was inspired by the tozo-eq project (github.com/vvr3ddy/tozo-eq).", "About BluntyBuds");
+    }
+    // AutoEQ profiles are listed with the presets; the connected model's own profile comes first.
+    static string AutoEqName(string m) => "AutoEQ · " + m;
+    AutoEq.Profile? MyAutoEq => _model.IsUnknown ? null : AutoEq.For(_model.Name);
+    Dictionary<string, float[]> PresetMap()
+    {
+        var d = new Dictionary<string, float[]>();
+        var mine = MyAutoEq;
+        if (mine is not null) d[AutoEqName(mine.Model) + " (this model)"] = mine.Gains;
+        foreach (var kv in _presets.All()) d[kv.Key] = kv.Value;
+        foreach (var p in AutoEq.Profiles) if (!ReferenceEquals(p, mine)) d[AutoEqName(p.Model)] = p.Gains;
+        return d;
+    }
+    bool IsFixed(string n) => _presets.IsBuiltIn(n) || n.StartsWith("AutoEQ");
     void ExportPresets()
     {
         try
@@ -627,6 +662,7 @@ public sealed class MainWindow : Window
         _ancBox.Visibility = f.Anc && _ble.Protocol == Protocol.A ? Visibility.Visible : Visibility.Collapsed;
         _balBox.Visibility = f.Balance && _ble.Protocol == Protocol.A ? Visibility.Visible : Visibility.Collapsed;
         _game.Visibility = f.Game ? Visibility.Visible : Visibility.Collapsed;
+        RefreshPresets(MyAutoEq is { } ae ? AutoEqName(ae.Model) + " (this model)" : null);
     }
 
     async Task SendAnc(AncMode m)
@@ -713,11 +749,11 @@ public sealed class MainWindow : Window
     // ----- presets -----
     void RefreshPresets(string? select = null)
     {
-        var names = _presets.All().Keys.ToList();
+        var names = PresetMap().Keys.ToList();
         _presetBox.ItemsSource = names;
         _presetBox.SelectedItem = select ?? names.FirstOrDefault();
     }
-    void LoadPreset() { if (_presetBox.SelectedItem is string n && _presets.All().TryGetValue(n, out var g)) { SetEq(g); _status.Text = $"Loaded \"{n}\" — click Apply to send."; } }
+    void LoadPreset() { if (_presetBox.SelectedItem is string n && PresetMap().TryGetValue(n, out var g)) { SetEq(g); _status.Text = $"Loaded \"{n}\" — click Apply to send."; } }
     void SavePreset()
     {
         var tb = new TextBox { Width = 220 };
@@ -726,13 +762,13 @@ public sealed class MainWindow : Window
         ok.Click += (_, _) => dlg.DialogResult = true;
         if (dlg.ShowDialog() != true) return;
         var n = tb.Text.Trim();
-        if (n.Length == 0 || _presets.IsBuiltIn(n)) { _status.Text = "Pick a new preset name."; return; }
+        if (n.Length == 0 || IsFixed(n)) { _status.Text = "Pick a new preset name."; return; }
         _presets.Save(n, EqUi()); RefreshPresets(n);
     }
     void DeletePreset()
     {
         if (_presetBox.SelectedItem is not string n) return;
-        if (_presets.IsBuiltIn(n)) { _status.Text = "Built-in presets can't be deleted."; return; }
+        if (IsFixed(n)) { _status.Text = "Built-in presets can't be deleted."; return; }
         _presets.Delete(n); RefreshPresets();
     }
 

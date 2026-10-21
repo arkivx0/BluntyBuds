@@ -12,6 +12,9 @@ Works with TOZO NC9 and A1; not affiliated with or endorsed by TOZO.
 - Battery and firmware readout
 - Noise control (Off / Noise cancelling / Ambient / Custom depth 1–10) on supported models
 - Game mode, 10-band EQ with presets (import/export JSON), touch-control mapping, L/R balance
+- AutoEQ: built-in correction profiles for models measured by the AutoEq project (the connected model's
+  profile is listed first; all are selectable), and "Import AutoEQ file" for any AutoEQ `ParametricEQ.txt`
+  or `GraphicEQ.txt`, fitted to the 10 bands offline
 - "Find earbuds" chirp
 - Windows: tray icon with battery, tray menu, low-battery toast, auto-reconnect, minimize to tray,
   optional Start with Windows, global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered EQ
@@ -51,6 +54,15 @@ Not supported:
 
 ## Development
 Run `BluntyBuds.exe --demo` to show the UI with made-up data (no Bluetooth, placeholder address) for screenshots.
+
+## AutoEQ data
+The built-in AutoEQ profiles (`windows/BluntyBuds.Proto/autoeq_profiles.tsv`, `android/app/src/main/assets/autoeq_profiles.tsv`)
+are generated at development time by `tools/autoeq/gen_autoeq.py` from the results of
+[AutoEq](https://github.com/jaakkopasanen/AutoEq) by Jaakko Pasanen (MIT License, Copyright (c) 2018-2022 Jaakko Pasanen;
+measurements by their original sources, e.g. Rtings). Each GraphicEQ correction is sampled at the band centres
+(20 Hz … 12.8 kHz), level-normalized, and solved for the device's peaking bands, then clamped to ±12 dB and rounded to 0.5 dB.
+The apps themselves never go online. The idea of fitting AutoEQ profiles was inspired by
+[tozo-eq](https://github.com/vvr3ddy/tozo-eq); no code was copied from it.
 
 ## License
 MIT, see [LICENSE](LICENSE).

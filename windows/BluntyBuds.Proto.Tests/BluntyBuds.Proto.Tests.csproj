@@ -10,5 +10,6 @@
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
+  <ItemGroup><None Include="../../tools/autoeq/testdata/*.txt" Link="autoeq/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../BluntyBuds.Proto/BluntyBuds.Proto.csproj" /></ItemGroup>
 </Project>
