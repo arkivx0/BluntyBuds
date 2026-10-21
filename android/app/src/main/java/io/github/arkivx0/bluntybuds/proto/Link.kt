@@ -54,3 +54,9 @@ class Generation {
     @Synchronized fun begin(): Int = ++g
     fun isCurrent(x: Int) = g == x
 }
+
+/** Whether an auto-reconnect attempt may run. Quit / Disconnect set userStopped, so nothing reconnects behind the user's back. */
+object RetryPolicy {
+    fun shouldRetry(connected: Boolean, autoReconnect: Boolean, userStopped: Boolean, hasLastDevice: Boolean): Boolean =
+        !connected && autoReconnect && !userStopped && hasLastDevice
+}

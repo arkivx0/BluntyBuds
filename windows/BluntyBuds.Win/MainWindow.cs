@@ -62,7 +62,7 @@ public sealed class MainWindow : Window
     ulong? _connectedAddr;
     string _connectedName = "";
     int? _ancMode;
-    bool _connecting, _userDisconnected, _lowWarned, _quitting;
+    bool _connecting, _userDisconnected, _lowWarned, _quitting, _closeHintThisSession;
     TouchMap _map = TouchMap.Defaults();
     int? _bl, _br;
     bool _suppress;
@@ -188,6 +188,10 @@ public sealed class MainWindow : Window
             B("Disconnect", (_, _) => UserDisconnect()),
             B("Scan", (_, _) => StartScan()),
             B("⟳", A(() => ListPaired()), small: true), _showAll);
+        var quit = B("Quit", (_, _) => { _quitting = true; Close(); });
+        quit.ToolTip = "Quit BluntyBuds (closing the window only hides it to the tray)";
+        quit.Margin = new Thickness(12, 0, 0, 0);
+        DockPanel.SetDock(quit, Dock.Right); header.Children.Add(quit);
         foreach (var c in actions.Children.OfType<Button>())
             c.ToolTip = (c.Content as string) switch { "Scan" => "Scan 12 s for advertising earbuds", "⟳" => "Refresh paired devices", _ => null };
         header.Children.Add(Row(title, actions));
@@ -479,10 +483,11 @@ public sealed class MainWindow : Window
         {
             e.Cancel = true;
             Hide();
-            if (!_cfg.CloseHintShown)
+            // Once per session (not once ever): a reminder each time the app is started, without a toast on every X.
+            if (!_closeHintThisSession)
             {
-                _cfg.CloseHintShown = true; _cfg.Save();
-                _tray.Toast("BluntyBuds", "BluntyBuds is still running in the tray. Use the tray menu → Quit to exit.");
+                _closeHintThisSession = true;
+                _tray.Toast("BluntyBuds", "BluntyBuds is still running in the tray. Use Quit (in the window or the tray menu) to exit.");
             }
             return;
         }

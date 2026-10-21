@@ -106,6 +106,18 @@ class MainActivity : Activity(), BleClient.Listener {
     }
 
     // Connection lives in Conn (shared with the Quick Settings tile / notification), so it is not closed here.
+    /** Close button and back: stop scanning and the chirp, drop the earbud link (no reconnect loop left behind), close the task. */
+    private fun quit() {
+        main.removeCallbacks(renderTick)
+        stopScan()
+        tone.stop()
+        Conn.quit()
+        finishAndRemoveTask()
+    }
+    @Deprecated("Back is the same as Close")
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() { quit() }
+
     override fun onDestroy() { Conn.listeners.remove(this); main.removeCallbacks(renderTick); stopScan(); tone.stop(); super.onDestroy() }
 
     // ---------- permissions ----------
@@ -178,7 +190,8 @@ class MainActivity : Activity(), BleClient.Listener {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(12), dp(12), dp(28)); setBackgroundColor(BG) }
 
         // ---- header ----
-        root.addView(row(text("BluntyBuds", 20f, ACCENT, true), space(10), weight(text("offline · no account · no analytics", 11f, DIM))))
+        root.addView(row(text("BluntyBuds", 20f, ACCENT, true), space(10), weight(text("offline · no account · no analytics", 11f, DIM)),
+            btn("✕  Close") { quit() }.apply { contentDescription = "Close BluntyBuds"; (layoutParams as LinearLayout.LayoutParams).marginEnd = 0 }))
         deviceSpinner = spinner(listOf("(no devices yet)"))
         showAll = CheckBox(this).apply {
             text = "All"; setTextColor(DIM); textSize = 12f; buttonTintList = ColorStateList.valueOf(ACCENT)

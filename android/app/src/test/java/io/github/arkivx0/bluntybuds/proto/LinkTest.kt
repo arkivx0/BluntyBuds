@@ -25,4 +25,15 @@ class LinkTest {
         assertEquals("insufficient authentication", GattErrors.name(5))
         assertTrue(GattErrors.describe(133).contains("generic GATT error"))
     }
+
+    @Test fun retryStopsAfterQuitButTileCanStillConnect() {
+        // auto-reconnect normally retries while disconnected
+        assertTrue(RetryPolicy.shouldRetry(connected = false, autoReconnect = true, userStopped = false, hasLastDevice = true))
+        // after Close / back / Disconnect nothing reconnects on its own
+        assertFalse(RetryPolicy.shouldRetry(connected = false, autoReconnect = true, userStopped = true, hasLastDevice = true))
+        // never while connected, without a remembered device, or with auto-reconnect off
+        assertFalse(RetryPolicy.shouldRetry(connected = true, autoReconnect = true, userStopped = false, hasLastDevice = true))
+        assertFalse(RetryPolicy.shouldRetry(connected = false, autoReconnect = true, userStopped = false, hasLastDevice = false))
+        assertFalse(RetryPolicy.shouldRetry(connected = false, autoReconnect = false, userStopped = false, hasLastDevice = true))
+    }
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2
+- Android: a Close button (top right) and the back button now disconnect the earbuds, stop scanning, cancel auto-reconnect and close the app. The Quick Settings tile still connects on demand.
+- Windows: a Quit button in the main window. The "still running in the tray" hint shows once per session instead of only once ever.
+
 ## 1.3.1
 - Auto-reconnect uses a single in-flight attempt with backoff (15s, 30s, then 60s) and a longer connect timeout.
 - Device list updates in place and refreshes at most about twice a second.

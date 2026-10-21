@@ -86,6 +86,16 @@ object Conn : BleClient.Listener {
         onStatus("Disconnected")
     }
 
+    /**
+     * Close button / back: drop the link and stop everything that could reconnect on its own
+     * (retry timer, pending tile cycle). The remembered device is kept, so the Quick Settings tile
+     * can still connect on demand later.
+     */
+    fun quit() {
+        disconnect()
+        backoff.reset()
+    }
+
     fun send(f: ByteArray) { try { ble.send(f) } catch (e: Exception) { onStatus("Send failed: ${e.message}") } }
 
     fun setAnc(m: AncMode) {
@@ -116,14 +126,15 @@ object Conn : BleClient.Listener {
     private fun markDisconnected() { connected = false; publish() }
 
     /** One attempt at a time: the next retry is scheduled only when this attempt fails (onDisconnected). */
+    private fun mayRetry() = RetryPolicy.shouldRetry(connected, autoReconnect, userDisconnected, lastAddress != null)
     private val retry = Runnable {
-        if (connected || !autoReconnect || userDisconnected) return@Runnable
+        if (!mayRetry()) return@Runnable
         if (ble.connecting) { scheduleRetry(); return@Runnable }
         if (!connectLast()) scheduleRetry()
     }
     private fun scheduleRetry() {
         main.removeCallbacks(retry)
-        if (autoReconnect && !userDisconnected && lastAddress != null) main.postDelayed(retry, backoff.next())
+        if (mayRetry()) main.postDelayed(retry, backoff.next())
     }
 
     // ---- BleClient.Listener (always called on the main thread) ----
