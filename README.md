@@ -1,5 +1,7 @@
 # BluntyBuds
 
+[![CI](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml/badge.svg)](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml)
+
 Unofficial offline earbud controller for Windows and Android.
 No internet permission, no account, no analytics, no auto-update.
 
