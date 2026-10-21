@@ -5,6 +5,7 @@
 - Import AutoEQ file: load an AutoEQ ParametricEQ.txt (PK / LSC / HSC filters) or GraphicEQ.txt, fitted offline to the 10 bands (±12 dB, 0.5 dB steps). Save it as a preset if you like.
 - About section with AutoEq attribution and license.
 - Generator script (tools/autoeq) and parser/fitting unit tests on both platforms.
+- Windows installer added (BluntyBuds-1.4.0-setup.exe): per-user install without admin, Start menu and optional desktop shortcut, uninstaller in Apps & features, in-place upgrades. The portable exe is still available.
 
 ## 1.3.3
 - Android: the app no longer draws under the status bar, camera cutout or navigation bar on Android 15 (edge-to-edge), so the header and Close button are reachable. Bar icons stay light on the dark background.

@@ -9,6 +9,16 @@ Works with TOZO NC9 and A1; not affiliated with or endorsed by TOZO.
 
 ![BluntyBuds on Windows (demo mode, made-up data)](docs/hero.png)
 
+## Install on Windows
+Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
+- **`BluntyBuds-<version>-setup.exe`** (installer, recommended): installs for your user without admin rights
+  (into `%LOCALAPPDATA%\Programs\BluntyBuds`; an all-users install is offered too), adds a Start menu shortcut,
+  an optional desktop icon, and an uninstaller in Apps & features. Newer versions upgrade in place.
+  Uninstalling removes the Start with Windows entry; your settings and presets are kept unless you choose to delete them.
+- **`BluntyBuds-<version>-win-x64.exe`** (portable): a single self-contained exe, no install; run it from any folder.
+
+Both need Windows 10 (19041) or later, x64. No .NET install required.
+
 ## Features
 - Model auto-detection; only supported controls are shown
 - Battery and firmware readout
@@ -26,6 +36,7 @@ Works with TOZO NC9 and A1; not affiliated with or endorsed by TOZO.
 ## Build
 Windows (.NET 8): `cd windows/BluntyBuds.Win && dotnet publish -c Release -o ../publish`
 Tests: `dotnet test windows/BluntyBuds.Proto.Tests`
+Installer (Inno Setup 6): publish into `windows/installer/dist`, then `iscc windows/installer/BluntyBuds.iss`
 
 Android (Gradle 8.9, AGP 8.5, SDK 35): `cd android && ./gradlew testReleaseUnitTest assembleRelease` (wrapper included)
 Release signing is read from a properties file **outside** the repo:
