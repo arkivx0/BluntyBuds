@@ -12,17 +12,11 @@ Unofficial: not affiliated with or endorsed by TOZO. Tested on NC9 and A1; other
 ![BluntyBuds on Windows (demo mode, made-up data)](docs/hero.png)
 
 ## Why this exists
-The official companion app for these earbuds does far more than control earbuds. Its code includes:
-- usage analytics and push-notification services
-- background location access and two map providers (for a "find my earbuds" map)
-- microphone access, in-app voice chat and an AI voice-chat feature
-- user accounts and a third-party customer-service chat with its own login
-- regular contact with the vendor's servers, which also supply the list of supported models, plus app and firmware update checks
-- roughly 39 Android permissions in total
+The official app asks for roughly 39 permissions, including your microphone and your location in the background. It is built around user accounts, ships with analytics and push-notification services, bundles voice chat, and keeps checking in with the vendor's servers. All of that just to change an EQ and read a battery level.
 
-This list comes from reading the app's code. It shows what the app is built to do, not a capture of what it actually sends.
+BluntyBuds asks for Bluetooth and notifications. That's it. It has no internet permission, so it can't phone home even if it wanted to.
 
-BluntyBuds does the earbud part only. On Android it asks for Bluetooth and notification permissions and nothing else. It has no internet permission, so it cannot send anything anywhere. There are no accounts, no analytics and no update checks.
+<sub>The description above comes from the official app's own code, not from capturing its network traffic.</sub>
 
 ## Install on Windows
 Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
