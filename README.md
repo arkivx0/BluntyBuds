@@ -28,6 +28,8 @@ Release signing is read from a properties file **outside** the repo:
 Without it the release APK is built unsigned.
 
 ## Screenshots
+![BluntyBuds on Windows (demo mode)](docs/screenshot.png)
+
 Run `BluntyBuds.exe --demo` to show the UI with made-up data (no Bluetooth, placeholder address) for screenshots.
 
 ## Model support
