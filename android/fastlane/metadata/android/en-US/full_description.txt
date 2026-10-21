@@ -1,4 +1,4 @@
-BluntyBuds is a free, open-source controller for TOZO Bluetooth earbuds. It talks to the earbuds directly over Bluetooth Low Energy and works completely offline.
+BluntyBuds is a free, open-source, unofficial controller for TOZO Bluetooth earbuds. It talks to the earbuds directly over Bluetooth Low Energy and works completely offline.
 
 <b>Privacy</b>
 <ul>
@@ -10,16 +10,19 @@ BluntyBuds is a free, open-source controller for TOZO Bluetooth earbuds. It talk
 <b>Features</b>
 <ul>
 <li>Battery level for each earbud</li>
-<li>Noise control: off, noise cancelling, ambient, custom depth</li>
-<li>10-band equalizer (±12 dB) with presets</li>
-<li>Built-in AutoEQ correction profiles and import of AutoEQ ParametricEQ/GraphicEQ files</li>
+<li>Noise control: off, noise cancelling, ambient, custom depth; game mode</li>
+<li>10-band equalizer (±12 dB) with presets, import/export</li>
+<li>AutoEQ: built-in correction profiles (NC2, NC7, NC9, T6, T10, T12) from AutoEq measurements; the connected model's profile is listed first</li>
+<li>Import any AutoEQ ParametricEQ.txt or GraphicEQ.txt, fitted offline to the 10 bands</li>
 <li>Configurable touch controls and balance</li>
 <li>Find my earbuds (play a chirp)</li>
-<li>Quick Settings tile and auto-reconnect</li>
+<li>Quick Settings noise tile, optional status notification with noise buttons, low-battery alert, auto-reconnect</li>
 </ul>
 
 Tested on TOZO NC9 and A1; other models are detected and marked "untested".
 
 BluntyBuds is an unofficial project and is not affiliated with or endorsed by TOZO. "TOZO" is used only to describe compatibility.
+
+AutoEQ profiles: AutoEq by Jaakko Pasanen (MIT).
 
 A Windows version is available from the project's GitHub page.

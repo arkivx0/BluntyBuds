@@ -2,10 +2,12 @@
 
 [![CI](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml/badge.svg)](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml)
 
-Unofficial offline earbud controller for Windows and Android.
-No internet permission, no account, no analytics, no auto-update.
+Free, open-source controller for TOZO earbuds on Windows and Android: noise control, a 10-band EQ with
+built-in AutoEQ correction profiles (or import your own AutoEQ file), touch-control mapping, battery and
+find-my-earbuds. It talks to the earbuds directly over Bluetooth LE and works fully offline:
+no internet permission, no account, no analytics, no auto-update.
 
-Works with TOZO NC9 and A1; not affiliated with or endorsed by TOZO.
+Unofficial: not affiliated with or endorsed by TOZO. Tested on NC9 and A1; other models are detected and marked untested.
 
 ![BluntyBuds on Windows (demo mode, made-up data)](docs/hero.png)
 
@@ -44,7 +46,7 @@ Release signing is read from a properties file **outside** the repo:
 Without it the release APK is built unsigned.
 
 ## Screenshots
-![BluntyBuds on Windows (demo mode)](docs/screenshot.png)
+![AutoEQ profiles in the preset list (demo mode, made-up data)](docs/autoeq-presets.png)
 
 ## Model support
 
