@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- Windows: the preset box is wider so long AutoEQ labels ("AutoEQ · NC9 (may differ by hardware revision)") are no longer cut off; the EQ tool row wraps on narrow windows.
+- Docs: screenshots recaptured for 1.4.1 (demo mode).
+
 ## 1.4.1
 - AutoEQ headroom: profiles no longer boost. Every fit (built-in profiles and imported files) is shifted down so the highest band is at most 0 dB, then clamped to ±12 dB and quantized to 0.5 dB. Built-in profiles regenerated (they boosted up to +7.5 dB with no preamp before).
 - Import AutoEQ file: the ParametricEQ.txt "Preamp" line is now honored; the 0 dB ceiling is still enforced.

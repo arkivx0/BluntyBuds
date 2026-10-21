@@ -22,6 +22,10 @@ Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
 
 Both need Windows 10 (19041) or later, x64. No .NET install required.
 
+## Install on Android
+Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest) and install it
+(allow installs from your browser or file manager when asked). Android 10 or later. The app has no INTERNET permission.
+
 ## Features
 - Model auto-detection; only supported controls are shown
 - Battery and firmware readout
@@ -49,6 +53,8 @@ Without it the release APK is built unsigned.
 
 ## Screenshots
 ![AutoEQ profiles in the preset list (demo mode, made-up data)](docs/autoeq-presets.png)
+
+![Touch-control mapping (demo mode, made-up data)](docs/touch-controls.png)
 
 ## Model support
 

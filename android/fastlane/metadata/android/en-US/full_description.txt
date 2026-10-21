@@ -12,7 +12,8 @@ BluntyBuds is a free, open-source, unofficial controller for TOZO Bluetooth earb
 <li>Battery level for each earbud</li>
 <li>Noise control: off, noise cancelling, ambient, custom depth; game mode</li>
 <li>10-band equalizer (±12 dB) with presets, import/export</li>
-<li>AutoEQ: built-in correction profiles (NC2, NC7, NC9, T6, T10, T12) from AutoEq measurements; the connected model's profile is listed first</li>
+<li>AutoEQ: built-in correction profiles (NC2, NC7, NC9, T6, T10, T12) from AutoEq measurements; the connected model's profile is listed first (marked "may differ by hardware revision" unless the chip matches the measured unit)</li>
+<li>AutoEQ headroom: profiles never boost (highest band at most 0 dB), so no clipping; imported files honor their Preamp line</li>
 <li>Import any AutoEQ ParametricEQ.txt or GraphicEQ.txt, fitted offline to the 10 bands</li>
 <li>Configurable touch controls and balance</li>
 <li>Find my earbuds (play a chirp)</li>

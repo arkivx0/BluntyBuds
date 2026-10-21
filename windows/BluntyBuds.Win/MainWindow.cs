@@ -274,7 +274,7 @@ public sealed class MainWindow : Window
             EqLabel(i);
             eqGrid.Children.Add(col);
         }
-        _presetBox.Width = 130;
+        _presetBox.Width = 310; // fits "AutoEQ · <model> (may differ by hardware revision)"; the tool row wraps on narrow windows
         var eqTools = WrapRow(_presetBox, new Border { Width = 6 }, B("Load", (_, _) => LoadPreset(), small: true), B("Save…", (_, _) => SavePreset(), small: true),
             B("Delete", (_, _) => DeletePreset(), small: true), B("Flat", (_, _) => SetEq(new float[10]), small: true),
             B("Import", (_, _) => ImportPresets(), small: true), B("Export", (_, _) => ExportPresets(), small: true), _restoreEq,
