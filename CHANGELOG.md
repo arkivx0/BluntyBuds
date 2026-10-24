@@ -3,15 +3,13 @@
 ## Unreleased
 
 ## 1.4.4
-- Names: the noise buttons say "Noise cancelling" and "Ambient". Touch actions say "Switch noise mode" and "Noise off". Ambient is the pass-through control.
-- Windows: the preset box is wider so long AutoEQ labels ("AutoEQ · NC9 (may differ by hardware revision)") are no longer cut off; the EQ tool row wraps on narrow windows.
-- Docs: screenshots recaptured for 1.4.4 (demo mode).
-
-## 1.4.2
 - One earbud: battery text, the tray, and alerts show only the bud that is in use. A missing bud is left out. It is not called disconnected and it does not keep the last percent. Low-battery alerts use only the bud you are wearing. A charging bud is marked "charging".
 - EQ: Load (and an AutoEQ file import, on Windows) sends the profile immediately, so you do not click Apply afterwards.
 - Android: the earbud-status notification is one notification. Turning it on no longer also posts the low-battery alert, and a burst of battery updates no longer posts a second card. It appears as soon as notification permission is granted.
 - Android: the option is named "Earbud status in the notification shade".
+- Names: the noise buttons say "Noise cancelling" and "Ambient". Touch actions say "Switch noise mode" and "Noise off". Ambient is the pass-through control.
+- Windows: the preset box is wider so long AutoEQ labels ("AutoEQ · NC9 (may differ by hardware revision)") are no longer cut off; the EQ tool row wraps on narrow windows.
+- Docs: screenshots recaptured for 1.4.4 (demo mode).
 
 ## 1.4.1
 - AutoEQ headroom: profiles no longer boost. Every fit (built-in profiles and imported files) is shifted down so the highest band is at most 0 dB, then clamped to ±12 dB and quantized to 0.5 dB. Built-in profiles regenerated (they boosted up to +7.5 dB with no preamp before).

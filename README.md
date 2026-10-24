@@ -14,7 +14,7 @@ Unofficial: not affiliated with or endorsed by TOZO. Tested on NC9 and A1; other
 ## Why this exists
 The official app asks for roughly 39 permissions, including your microphone and your location in the background. It is built around user accounts, ships with analytics and push-notification services, bundles voice chat, and keeps checking in with the vendor's servers. All of that just to change an EQ and read a battery level.
 
-BluntyBuds asks for Bluetooth and notifications. That's it (plus location on Android 11 and older, which Android requires for Bluetooth scanning). It has no internet permission, so it can't phone home even if it wanted to.
+BluntyBuds asks for Bluetooth and notifications. That's it (plus location on Android 10 and 11, which Android requires for Bluetooth scanning). It has no internet permission, so it can't phone home even if it wanted to.
 
 <sub>The description above comes from the official app's own code, not from capturing its network traffic.</sub>
 
