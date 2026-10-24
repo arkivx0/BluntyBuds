@@ -700,7 +700,7 @@ public sealed class MainWindow : Window
         _devItems.Add(item); _devices.SelectedItem = item;
         _model = item.Model;
         ApplyModel(); SetConnectedUi(true);
-        foreach (var e in new Event[] { new Event.Battery(85, 90), new Event.Firmware("1.0.0", "1.0.0"), new Event.Anc((int)AncMode.Anc),
+        foreach (var e in new Event[] { new Event.Battery(85, null, ChargingLeft: true, Snapshot: true), new Event.Firmware("1.0.0", "1.0.0"), new Event.Anc((int)AncMode.Anc),
                      new Event.Game(false), new Event.Eq(new float[] { 3, 2, 1, 0, 0, 0, 1, 2, 2, 1 }), new Event.Balance(0), new Event.Touch(TouchMap.Defaults()) })
             OnEvent(e);
         _status.Text = "Demo mode: made-up data, Bluetooth not used";
