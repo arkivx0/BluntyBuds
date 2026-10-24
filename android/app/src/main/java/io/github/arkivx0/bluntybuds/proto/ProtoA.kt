@@ -101,17 +101,22 @@ object ProtoA {
     }
     fun setTouch(map: TouchMap) = frame(SET_BUTTONS, touchPayload(map))
 
+    /** Protocol A sends both buds in one packet. One byte is the left bud only; two or more use the first two. */
+    private fun decodeBattery(p: ByteArray): Event? {
+        if (p.isEmpty()) return null
+        val (l, cl) = BatteryText.parse(p[0].toInt())
+        if (p.size == 1) return Event.Battery(l, null, chargingLeft = cl, snapshot = true)
+        val (r, cr) = BatteryText.parse(p[1].toInt())
+        return Event.Battery(l, r, chargingLeft = cl, chargingRight = cr, snapshot = true)
+    }
+
     fun decode(raw: ByteArray): Event? {
         val (cmd, p) = parseFrame(raw) ?: return null
         return decodePayload(cmd, p)
     }
 
     fun decodePayload(cmd: Int, p: ByteArray): Event = when (cmd) {
-        GET_BATTERY, NOTIFY_BATTERY -> when (p.size) {
-            1 -> Event.Battery(p[0].toInt() and 0xFF, null)
-            2 -> Event.Battery(p[0].toInt() and 0xFF, p[1].toInt() and 0xFF)
-            else -> Event.Raw(cmd, p)
-        }
+        GET_BATTERY, NOTIFY_BATTERY -> decodeBattery(p)?.let { it } ?: Event.Raw(cmd, p)
         GET_FW_VERSION -> when (p.size) {
             3 -> Event.Firmware(ver(p, 0), null)
             6 -> Event.Firmware(ver(p, 0), ver(p, 3))

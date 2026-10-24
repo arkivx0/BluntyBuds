@@ -94,8 +94,14 @@ object ProtoJ {
     fun decode(raw: ByteArray): List<Event> = splitFrames(raw).map { (cmd, p, _) -> decodePayload(cmd, p) }
 
     fun decodePayload(cmd: Int, p: ByteArray): Event = when (cmd) {
-        BATTERY_LEFT -> if (p.size == 1) Event.Battery(p[0].toInt() and 0xFF, null) else Event.Raw(cmd, p)
-        BATTERY_RIGHT -> if (p.size == 1) Event.Battery(null, p[0].toInt() and 0xFF) else Event.Raw(cmd, p)
+        BATTERY_LEFT -> if (p.size == 1) {
+            val (pct, ch) = BatteryText.parse(p[0].toInt())
+            Event.Battery(pct, null, chargingLeft = ch, reportsRight = false)
+        } else Event.Raw(cmd, p)
+        BATTERY_RIGHT -> if (p.size == 1) {
+            val (pct, ch) = BatteryText.parse(p[0].toInt())
+            Event.Battery(null, pct, chargingRight = ch, reportsLeft = false)
+        } else Event.Raw(cmd, p)
         GAME_GET -> if (p.size == 1) Event.Game(p[0].toInt() == 1) else Event.Raw(cmd, p)
         GAME_SET, BUTTON_SET, EQ_SET -> Event.Ack(cmd, p.size == 1 && p[0].toInt() == 1)
         BUTTON_GET -> {

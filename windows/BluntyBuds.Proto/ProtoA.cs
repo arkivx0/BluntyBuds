@@ -75,14 +75,19 @@ public static class ProtoA
 
     static string Ver(byte[] p, int o) => $"{p[o]}.{p[o + 1]}.{p[o + 2]}";
 
+    /// <summary>Protocol A sends both buds in one packet. One byte is the left bud only; two or more use the first two. Unlisted sides are not in use.</summary>
+    static Event? DecodeBattery(byte[] p)
+    {
+        if (p.Length == 0) return null;
+        var (l, cl) = BatteryText.Parse(p[0]);
+        if (p.Length == 1) return new Event.Battery(l, null, cl, false, Snapshot: true);
+        var (r, cr) = BatteryText.Parse(p[1]);
+        return new Event.Battery(l, r, cl, cr, Snapshot: true);
+    }
+
     public static Event DecodePayload(int cmd, byte[] p) => cmd switch
     {
-        GetBattery or NotifyBattery => p.Length switch
-        {
-            1 => new Event.Battery(p[0], null),
-            2 => new Event.Battery(p[0], p[1]),
-            _ => new Event.Raw(cmd, p)
-        },
+        GetBattery or NotifyBattery => DecodeBattery(p) is { } b ? b : new Event.Raw(cmd, p),
         GetFwVersion => p.Length switch
         {
             3 => new Event.Firmware(Ver(p, 0), null),

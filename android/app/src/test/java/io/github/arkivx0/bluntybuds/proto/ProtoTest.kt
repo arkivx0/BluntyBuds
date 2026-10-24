@@ -37,8 +37,14 @@ class ProtoATest {
         assertArrayEquals(h("02 03 04 06 00 01 02 04 05 00"), ProtoA.touchPayload(m))
     }
     @Test fun decodeBattery() {
-        assertEquals(Event.Battery(80, 75), ProtoA.decode(ProtoA.frame(0x0002, byteArrayOf(80, 75))))
-        assertEquals(Event.Battery(50, null), ProtoA.decode(ProtoA.frame(0x200E, byteArrayOf(50))))
+        assertEquals(Event.Battery(80, 75, snapshot = true), ProtoA.decode(ProtoA.frame(0x0002, byteArrayOf(80, 75))))
+        assertEquals(Event.Battery(50, null, snapshot = true), ProtoA.decode(ProtoA.frame(0x200E, byteArrayOf(50))))
+        assertEquals(Event.Battery(80, 75, chargingLeft = true, snapshot = true), ProtoA.decode(ProtoA.frame(0x0002, byteArrayOf(0xD0.toByte(), 75))))
+        assertEquals(Event.Battery(null, 40, snapshot = true), ProtoA.decode(ProtoA.frame(0x0002, byteArrayOf(0xFF.toByte(), 40))))
+        assertEquals("R 40%", BatteryText.format(null, 40))
+        assertEquals("L 80% charging", BatteryText.format(80, null, chargingLeft = true))
+        assertEquals(40, BatteryText.lowest(null, 40))
+        assertNull(BatteryText.lowest(null, null))
     }
     @Test fun decodeVersion() {
         assertEquals(Event.Firmware("1.2.3", "1.2.4"), ProtoA.decode(ProtoA.frame(0x0001, h("01 02 03 01 02 04"))))
@@ -98,7 +104,7 @@ class ProtoJTest {
     @Test fun splitMultipleRepliesInOneNotification() {
         val raw = h("A5 14 01 50 0A" + "A5 15 01 4B 06")
         val ev = ProtoJ.decode(raw)
-        assertEquals(listOf(Event.Battery(80, null), Event.Battery(null, 75)), ev)
+        assertEquals(listOf(Event.Battery(80, null, reportsRight = false), Event.Battery(null, 75, reportsLeft = false)), ev)
         val fr = ProtoJ.splitFrames(raw)
         assertTrue(fr.all { it.third })
     }

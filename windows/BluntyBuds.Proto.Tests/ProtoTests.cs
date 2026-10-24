@@ -20,8 +20,14 @@ public class ProtoTests
     [Fact] public void A_TouchPayload() => Assert.Equal(H("02030406000102040500"), ProtoA.TouchPayload(new TouchMap(new[] { 2, -1, 4, 6, 0 }, new[] { 1, 2, 4, 5, 0 })));
     [Fact] public void A_DecodeBatteryVersion()
     {
-        Assert.Equal(new Event.Battery(80, 75), ProtoA.Decode(ProtoA.Frame(0x0002, new byte[] { 80, 75 })));
-        Assert.Equal(new Event.Battery(50, null), ProtoA.Decode(ProtoA.Frame(0x200E, new byte[] { 50 })));
+        Assert.Equal(new Event.Battery(80, 75, Snapshot: true), ProtoA.Decode(ProtoA.Frame(0x0002, new byte[] { 80, 75 })));
+        Assert.Equal(new Event.Battery(50, null, Snapshot: true), ProtoA.Decode(ProtoA.Frame(0x200E, new byte[] { 50 })));
+        Assert.Equal(new Event.Battery(80, 75, ChargingLeft: true, Snapshot: true), ProtoA.Decode(ProtoA.Frame(0x0002, new byte[] { 0xD0, 75 })));
+        Assert.Equal(new Event.Battery(null, 40, Snapshot: true), ProtoA.Decode(ProtoA.Frame(0x0002, new byte[] { 0xFF, 40 })));
+        Assert.Equal("R 40%", BatteryText.Format(null, 40));
+        Assert.Equal("L 80% charging", BatteryText.Format(80, null, chargingLeft: true));
+        Assert.Equal(40, BatteryText.Lowest(null, 40));
+        Assert.Null(BatteryText.Lowest(null, null));
         Assert.Equal(new Event.Firmware("1.2.3", "1.2.4"), ProtoA.Decode(ProtoA.Frame(0x0001, H("010203010204"))));
         Assert.Equal(new Event.Firmware("2.0.200", null), ProtoA.Decode(ProtoA.Frame(0x0001, H("0200C8"))));
     }
@@ -63,7 +69,7 @@ public class ProtoTests
     [Fact] public void J_Decode()
     {
         var ev = ProtoJ.Decode(H("A51401500A" + "A515014B06"));
-        Assert.Equal(new Event[] { new Event.Battery(80, null), new Event.Battery(null, 75) }, ev);
+        Assert.Equal(new Event[] { new Event.Battery(80, null, ReportsRight: false), new Event.Battery(null, 75, ReportsLeft: false) }, ev);
         Assert.All(ProtoJ.SplitFrames(H("A51401500AA515014B06")), f => Assert.True(f.ChecksumOk));
         Assert.Equal(new Event.Firmware("1.2.3", "1.2.4"), ProtoJ.Decode(H("A566050112031204 00"))[0]);
         var t = (Event.Touch)ProtoJ.Decode(H("A53910 01080208030704060502060107A008A0 00"))[0];

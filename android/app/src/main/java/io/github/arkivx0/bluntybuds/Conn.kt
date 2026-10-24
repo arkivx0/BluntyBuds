@@ -27,6 +27,11 @@ object Conn : BleClient.Listener {
     var connected = false; private set
     var batL: Int? = null; private set
     var batR: Int? = null; private set
+    var chargeL = false; private set
+    var chargeR = false; private set
+    private var pollToken = 0
+    private var sawL = false
+    private var sawR = false
     var ancMode: Int? = null; private set
     var ancLevel: Int? = null; private set
     var game: Boolean? = null; private set
@@ -42,7 +47,7 @@ object Conn : BleClient.Listener {
         set(v) { prefs.edit().putBoolean("auto", v).apply(); if (!v) main.removeCallbacks(retry) }
     var statusNotification: Boolean
         get() = prefs.getBoolean("notif", false)
-        set(v) { prefs.edit().putBoolean("notif", v).apply(); Notifier.refresh(app) }
+        set(v) { prefs.edit().putBoolean("notif", v).apply(); Notifier.refreshNow(app) }
     val lastAddress: String? get() = prefs.getString("addr", null)
     val lastName: String? get() = prefs.getString("name", null)
 
@@ -60,6 +65,7 @@ object Conn : BleClient.Listener {
             main.removeCallbacks(retry)
             userDisconnected = false
             model = m; name = n
+            batL = null; batR = null; chargeL = false; chargeR = false; lowWarned = false
             prefs.edit().putString("addr", d.address).putString("name", n).apply()
             ble.connect(d, hint)
         } catch (e: Exception) { onStatus("Connect failed: ${e.message}") }
@@ -123,6 +129,32 @@ object Conn : BleClient.Listener {
         try { Notifier.refresh(app) } catch (_: Exception) {}
         try { TileService.requestListeningState(app, ComponentName(app, AncTileService::class.java)) } catch (_: Exception) {}
     }
+
+    /** Protocol J reports each bud on its own. A side that does not answer this refresh is not in use. */
+    fun beginBatteryPoll() {
+        val token = ++pollToken
+        sawL = false; sawR = false
+        main.postDelayed({
+            if (token != pollToken) return@postDelayed
+            if (!sawL) { batL = null; chargeL = false }
+            if (!sawR) { batR = null; chargeR = false }
+            publish()
+        }, 1500)
+    }
+
+    private fun applyBattery(e: Event.Battery) {
+        if (e.snapshot) {
+            batL = e.left; batR = e.right; chargeL = e.chargingLeft; chargeR = e.chargingRight
+        } else {
+            if (e.reportsLeft) { batL = e.left; chargeL = e.chargingLeft; sawL = true }
+            if (e.reportsRight) { batR = e.right; chargeR = e.chargingRight; sawR = true }
+        }
+        val low = BatteryText.lowest(batL, batR)
+        if (low != null && low <= 20 && !lowWarned) {
+            lowWarned = true
+            if (!statusNotification) Notifier.lowBattery(app, name, batL, batR, chargeL, chargeR)
+        } else if (low == null || low > 25) lowWarned = false
+    }
     private fun markDisconnected() { connected = false; publish() }
 
     /** One attempt at a time: the next retry is scheduled only when this attempt fails (onDisconnected). */
@@ -156,12 +188,7 @@ object Conn : BleClient.Listener {
     }
     override fun onEvent(e: Event) {
         when (e) {
-            is Event.Battery -> {
-                e.left?.let { batL = it }; e.right?.let { batR = it }
-                val low = minOf(batL ?: 100, batR ?: 100)
-                if (low <= 20 && !lowWarned) { lowWarned = true; Notifier.lowBattery(app, name, batL, batR) }
-                else if (low > 25) lowWarned = false
-            }
+            is Event.Battery -> applyBattery(e)
             is Event.Anc -> ancMode = e.mode
             is Event.AncLevel -> ancLevel = e.level
             is Event.Game -> game = e.on

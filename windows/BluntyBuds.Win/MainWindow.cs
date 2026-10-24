@@ -65,6 +65,9 @@ public sealed class MainWindow : Window
     bool _connecting, _userDisconnected, _lowWarned, _quitting, _closeHintThisSession;
     TouchMap _map = TouchMap.Defaults();
     int? _bl, _br;
+    bool _cl, _cr;
+    int _batGen;
+    bool _sawL, _sawR;
     bool _suppress;
 
     // global hotkey Ctrl+Alt+N = cycle noise mode
@@ -234,7 +237,7 @@ public sealed class MainWindow : Window
         _game.Unchecked += A(() => _suppress ? Task.CompletedTask : SendGame(false));
         var seg = new Border { Background = (Brush)FindResource("Ctl"), CornerRadius = new CornerRadius(7), Padding = new Thickness(1) };
         var segRow = new StackPanel { Orientation = Orientation.Horizontal };
-        foreach (var (m, t) in new[] { (AncMode.Off, "Off"), (AncMode.Anc, "Noise cancel"), (AncMode.Transparency, "Ambient"), (AncMode.Custom, "Custom") })
+        foreach (var (m, t) in new[] { (AncMode.Off, "Off"), (AncMode.Anc, "Noise cancelling"), (AncMode.Transparency, "Ambient"), (AncMode.Custom, "Custom") })
         {
             var rb = new RadioButton { Content = t, GroupName = "anc", Style = (Style)FindResource("Segment") };
             var mm = m;
@@ -245,7 +248,7 @@ public sealed class MainWindow : Window
         _ancLevel.ValueChanged += (_, _) => { _ancLevelLbl.Text = $"Depth {(int)_ancLevel.Value}"; if (!_suppress) { _levelDebounce.Stop(); _levelDebounce.Start(); } };
         _ancLevelLbl.Text = $"Depth {(int)_ancLevel.Value}";
         _ancLevelBox.Children.Add(_ancLevelLbl); _ancLevelBox.Children.Add(_ancLevel);
-        _ancLevelBox.ToolTip = "Noise-cancelling depth (custom ANC level 1-10)";
+        _ancLevelBox.ToolTip = "Noise-cancelling depth, 1–10";
         _ancBox.Children.Add(Lbl("NOISE", 11)); _ancBox.Children.Add(new Border { Width = 8 });
         _ancBox.Children.Add(seg); _ancBox.Children.Add(_ancLevelBox); _ancBox.Children.Add(_ancOther);
         _ancBox.Children.Add(Sep());
@@ -412,7 +415,7 @@ public sealed class MainWindow : Window
             _userDisconnected = false;
             _model = model; _connectedAddr = addr; _connectedName = name;
             _cfg.LastAddress = addr; if (!string.IsNullOrEmpty(name)) _cfg.LastName = name; _cfg.Save();
-            _lowWarned = false; _bl = _br = null; _ancMode = null;
+            _lowWarned = false; _bl = _br = null; _cl = _cr = false; _ancMode = null;
             ApplyModel();
             SetConnectedUi(true);
             await RefreshAll();
@@ -429,7 +432,12 @@ public sealed class MainWindow : Window
         _tray.Toast("Noise mode", next switch { AncMode.Anc => "Noise cancelling", AncMode.Transparency => "Ambient", _ => "Off" });
     }
 
-    void UpdateTray() => _tray.Update(_model.IsUnknown ? "Earbuds" : _model.ToString(), _bl, _br, _ble.Protocol.HasValue, _ancMode, Models.For(_model), _game.IsChecked == true);
+    void UpdateTray() => _tray.Update(_model.IsUnknown ? "Earbuds" : _model.ToString(), _bl, _br, _ble.Protocol.HasValue, _ancMode, Models.For(_model), _game.IsChecked == true, _cl, _cr);
+    void ShowBattery()
+    {
+        _battery.Text = BatteryText.Format(_bl, _br, _cl, _cr);
+        UpdateTray();
+    }
 
     async Task SendAncLevel()
     {
@@ -468,14 +476,15 @@ public sealed class MainWindow : Window
         catch (Exception ex) { _status.Text = "Import failed: " + ex.Message; }
     }
     static Button Tip(Button b, string t) { b.ToolTip = t; return b; }
-    void ImportAutoEq()
+    async void ImportAutoEq()
     {
         try
         {
             var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "AutoEQ ParametricEQ / GraphicEQ (*.txt)|*.txt|All files|*.*" };
             if (dlg.ShowDialog(this) != true) return;
             SetEq(AutoEq.FitText(File.ReadAllText(dlg.FileName)));
-            _status.Text = $"Fitted {Path.GetFileName(dlg.FileName)} to 10 bands — click Apply to send, or Save… as a preset.";
+            if (_ble.Protocol.HasValue) { await SendEq(); _status.Text = $"Applied {Path.GetFileName(dlg.FileName)}."; }
+            else _status.Text = $"Fitted {Path.GetFileName(dlg.FileName)} to the sliders. Connect, then click Apply EQ, or Save… as a preset.";
         }
         catch (Exception ex) { _status.Text = "AutoEQ import failed: " + ex.Message; }
     }
@@ -705,8 +714,16 @@ public sealed class MainWindow : Window
                      .Concat(Models.For(_model).AncLevel ? new[] { ProtoA.GetCustomAncLevel } : Array.Empty<int>()))
                 await _ble.SendAsync(ProtoA.Get(c));
         else if (_ble.Protocol == Protocol.J)
+        {
+            int gen = ++_batGen; _sawL = _sawR = false;
             foreach (var c in new[] { ProtoJ.BatteryLeft, ProtoJ.BatteryRight, ProtoJ.Version, ProtoJ.GameGet, ProtoJ.ButtonGet, ProtoJ.EqGet })
                 await _ble.SendAsync(ProtoJ.Get(c));
+            await Task.Delay(1500);
+            if (gen != _batGen) return;
+            if (!_sawL) { _bl = null; _cl = false; }
+            if (!_sawR) { _br = null; _cr = false; }
+            ShowBattery();
+        }
     }
     Task SendGame(bool on) => _ble.Protocol switch
     {
@@ -759,13 +776,14 @@ public sealed class MainWindow : Window
         _presetBox.ItemsSource = names;
         _presetBox.SelectedItem = select is not null && names.Contains(select) ? select : names.FirstOrDefault();
     }
-    void LoadPreset()
+    async void LoadPreset()
     {
         if (_presetBox.SelectedItem is string n && PresetMap().TryGetValue(n, out var g))
         {
             SetEq(g);
             if (!_demo) { _cfg.LastPreset = n; _cfg.Save(); }
-            _status.Text = $"Loaded \"{n}\" — click Apply to send.";
+            if (_ble.Protocol.HasValue) { await SendEq(); _status.Text = $"Applied \"{n}\"."; }
+            else _status.Text = $"Loaded \"{n}\" onto the sliders. Connect, then click Load again to send it.";
         }
     }
     void SavePreset()
@@ -792,12 +810,19 @@ public sealed class MainWindow : Window
         switch (e)
         {
             case Event.Battery b:
-                if (b.Left is { } l) _bl = l; if (b.Right is { } r) _br = r;
-                _battery.Text = $"L {(_bl is { } x ? x + "%" : "—")}   R {(_br is { } y ? y + "%" : "—")}";
-                var low = Math.Min(_bl ?? 100, _br ?? 100);
-                if (low <= _cfg.LowBatteryPercent && !_lowWarned) { _lowWarned = true; _tray.Toast("BluntyBuds · low battery", $"{_connectedName} {_battery.Text}", warn: true); }
-                else if (low > _cfg.LowBatteryPercent + 5) _lowWarned = false;
-                UpdateTray();
+                if (b.Snapshot)
+                {
+                    _bl = b.Left; _br = b.Right; _cl = b.ChargingLeft; _cr = b.ChargingRight;
+                }
+                else
+                {
+                    if (b.ReportsLeft) { _bl = b.Left; _cl = b.ChargingLeft; _sawL = true; }
+                    if (b.ReportsRight) { _br = b.Right; _cr = b.ChargingRight; _sawR = true; }
+                }
+                ShowBattery();
+                var low = BatteryText.Lowest(_bl, _br);
+                if (low is int p && p <= _cfg.LowBatteryPercent && !_lowWarned) { _lowWarned = true; _tray.Toast("BluntyBuds · low battery", $"{_connectedName} {_battery.Text}", warn: true); }
+                else if (low is null || low > _cfg.LowBatteryPercent + 5) _lowWarned = false;
                 break;
             case Event.Firmware f: _fw.Text = $"FW {f.Left}" + (f.Right is null || f.Right == f.Left ? "" : $" / {f.Right}"); _fw.Foreground = (Brush)FindResource("Dim"); break;
             case Event.Game g: _suppress = true; _game.IsChecked = g.On; _suppress = false; UpdateTray(); break;

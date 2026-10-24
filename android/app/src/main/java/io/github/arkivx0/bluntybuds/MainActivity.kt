@@ -65,8 +65,6 @@ class MainActivity : Activity(), BleClient.Listener {
     private lateinit var ancLevelLabel: TextView
 
     private val model get() = Conn.model
-    private var batL: Int? = null
-    private var batR: Int? = null
     private var touch = TouchMap.defaults()
     private var suppress = false
     private val seen = LinkedHashMap<String, Pair<ScanResult, AdParser.VendorAd?>>()
@@ -97,6 +95,7 @@ class MainActivity : Activity(), BleClient.Listener {
 
     override fun onRequestPermissionsResult(rc: Int, perms: Array<out String>, res: IntArray) {
         super.onRequestPermissionsResult(rc, perms, res)
+        if (rc == 2) Notifier.refreshNow(this)
         if (hasPerms()) afterPerms()
     }
 
@@ -217,9 +216,9 @@ class MainActivity : Activity(), BleClient.Listener {
 
         // ---- noise + game ----
         val seg = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; background = round(CTL, 8); setPadding(dp(2), dp(2), dp(2), dp(2)) }
-        for ((m, t) in listOf(AncMode.OFF to "Off", AncMode.ANC to "Noise cancel", AncMode.TRANSPARENCY to "Ambient", AncMode.CUSTOM to "Custom")) {
-            val b = text(t, 13f).apply {
-                gravity = Gravity.CENTER; setPadding(dp(4), dp(7), dp(4), dp(7)); maxLines = 1
+        for ((m, t) in listOf(AncMode.OFF to "Off", AncMode.ANC to "Noise cancelling", AncMode.TRANSPARENCY to "Ambient", AncMode.CUSTOM to "Custom")) {
+            val b = text(t, 12f).apply {
+                gravity = Gravity.CENTER; setPadding(dp(4), dp(7), dp(4), dp(7)); maxLines = 2
                 layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
                 setOnClickListener { if (!suppress) Conn.setAnc(m) }
             }
@@ -303,9 +302,9 @@ class MainActivity : Activity(), BleClient.Listener {
 
         // ---- app options ----
         val auto = switch("Auto-reconnect to last device") { Conn.autoReconnect = it }.apply { isChecked = Conn.autoReconnect }
-        val notif = switch("Status notification (battery + noise buttons)") { if (it) askNotifPermission(); Conn.statusNotification = it }.apply { isChecked = Conn.statusNotification }
+        val notif = switch("Earbud status in the notification shade") { if (it) askNotifPermission(); Conn.statusNotification = it }.apply { isChecked = Conn.statusNotification }
         root.addView(card(title("App"), auto, notif,
-            text("Quick Settings: add the “Noise” tile to cycle Off → Noise cancel → Ambient.", 11f, DIM).apply { setPadding(0, dp(4), 0, 0) }))
+            text("Quick Settings: add the “Noise” tile to cycle Off → Noise cancelling → Ambient.", 11f, DIM).apply { setPadding(0, dp(4), 0, 0) }))
         setControlsEnabled(false)
         return ScrollView(this).apply {
             setBackgroundColor(BG); addView(root)
@@ -386,7 +385,11 @@ class MainActivity : Activity(), BleClient.Listener {
     }
     private fun loadPreset() {
         val n = presetSpinner.selectedItem as? String ?: return
-        presetMap()[n]?.let { setEqUi(it); presets.setLastUsed(n); toast("Loaded \"$n\" — tap Apply to send") }
+        presetMap()[n]?.let {
+            setEqUi(it); presets.setLastUsed(n)
+            if (ble.protocol != null) { sendEq(); toast("Applied \"$n\"") }
+            else toast("Loaded \"$n\" onto the sliders. Connect, then tap Load again to send it")
+        }
     }
     private fun savePresetDialog() {
         val et = EditText(this).apply { hint = "Preset name" }
@@ -422,7 +425,9 @@ class MainActivity : Activity(), BleClient.Listener {
                     // Any file type can be picked, so check the content: small, text, and a real AutoEQ file (fitText throws otherwise).
                     val bytes = contentResolver.openInputStream(uri)?.use { it.readNBytesCompat((1 shl 20) + 1) } ?: return
                     if (bytes.size > (1 shl 20) || bytes.any { it == 0.toByte() }) throw IllegalArgumentException("not an AutoEQ text file")
-                    setEqUi(AutoEq.fitText(bytes.toString(Charsets.UTF_8))); toast("AutoEQ file fitted to 10 bands — tap Apply to send, or Save as a preset")
+                    setEqUi(AutoEq.fitText(bytes.toString(Charsets.UTF_8)))
+                    if (ble.protocol != null) { sendEq(); toast("Applied AutoEQ file") }
+                    else toast("AutoEQ file fitted to the sliders. Connect, then tap Apply, or Save as a preset")
                 }
                 RC_EXPORT -> {
                     contentResolver.openOutputStream(uri, "wt")?.use { it.write(presets.exportJson().toByteArray()) }
@@ -530,8 +535,11 @@ class MainActivity : Activity(), BleClient.Listener {
                 .plus(if (Models.features(model).anc) listOf(ProtoA.GET_ANC_MODE) else emptyList())
                 .plus(if (Models.features(model).ancLevel) listOf(ProtoA.GET_CUSTOM_ANC_LEVEL) else emptyList())
                 .forEach { send(ProtoA.get(it)) }
-            Protocol.J -> listOf(ProtoJ.BATTERY_LEFT, ProtoJ.BATTERY_RIGHT, ProtoJ.VERSION, ProtoJ.GAME_GET,
-                ProtoJ.BUTTON_GET, ProtoJ.EQ_GET).forEach { send(ProtoJ.get(it)) }
+            Protocol.J -> {
+                Conn.beginBatteryPoll()
+                listOf(ProtoJ.BATTERY_LEFT, ProtoJ.BATTERY_RIGHT, ProtoJ.VERSION, ProtoJ.GAME_GET,
+                    ProtoJ.BUTTON_GET, ProtoJ.EQ_GET).forEach { send(ProtoJ.get(it)) }
+            }
             null -> {}
         }
     }
@@ -583,10 +591,7 @@ class MainActivity : Activity(), BleClient.Listener {
     }
     override fun onEvent(e: Event) {
         when (e) {
-            is Event.Battery -> {
-                e.left?.let { batL = it }; e.right?.let { batR = it }
-                battery.text = "L ${batL?.let { "$it%" } ?: "—"}  R ${batR?.let { "$it%" } ?: "—"}"
-            }
+            is Event.Battery -> battery.text = BatteryText.format(Conn.batL, Conn.batR, Conn.chargeL, Conn.chargeR)
             is Event.Firmware -> firmware.text = "FW ${e.left}" + (e.right?.takeIf { it != e.left }?.let { " / $it" } ?: "")
             is Event.Game -> { suppress = true; game.isChecked = e.on; suppress = false }
             is Event.Touch -> {

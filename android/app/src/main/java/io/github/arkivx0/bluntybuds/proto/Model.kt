@@ -16,8 +16,8 @@ enum class TouchAction(val a: Int, val j: Int, val label: String) {
     VOLUME_UP(5, 1, "Volume +"),
     VOLUME_DOWN(6, 2, "Volume -"),
     GAME_MODE(7, 100, "Toggle game mode"),
-    ANC_SWITCH(8, 3, "Switch ANC mode"),
-    ANC_OFF(10, 10, "ANC off / normal");
+    ANC_SWITCH(8, 3, "Switch noise mode"),
+    ANC_OFF(10, 10, "Noise off");
 
     companion object {
         fun fromA(b: Int): TouchAction? = entries.firstOrNull { it.a == b }
@@ -55,8 +55,15 @@ object EqGrid {
 }
 
 sealed class Event {
-    /** Battery percent; null = not reported / earbud absent. */
-    data class Battery(val left: Int?, val right: Int?) : Event()
+    /**
+     * One battery report. [snapshot] replaces both sides (a missing side is not in use).
+     * A partial report only changes the sides it names.
+     */
+    data class Battery(
+        val left: Int?, val right: Int?,
+        val chargingLeft: Boolean = false, val chargingRight: Boolean = false,
+        val snapshot: Boolean = false, val reportsLeft: Boolean = true, val reportsRight: Boolean = true
+    ) : Event()
     data class Firmware(val left: String, val right: String?) : Event()
     data class Game(val on: Boolean) : Event()
     data class Touch(val map: TouchMap) : Event()
@@ -70,9 +77,32 @@ sealed class Event {
 
 internal fun ByteArray.hex() = joinToString("") { "%02X".format(it) }
 
+/** Battery percent text. A side that was not reported is omitted, so one earbud does not show a stale partner. */
+object BatteryText {
+    /** 0–100 is a percent. The high bit plus a percent of 0–100 means charging. 0xFF and other out-of-range values mean that earbud is absent. */
+    fun parse(raw: Int): Pair<Int?, Boolean> {
+        val b = raw and 0xFF
+        if (b == 0xFF) return null to false
+        if (b > 100 && b and 0x80 != 0) {
+            val p = b and 0x7F
+            if (p <= 100) return p to true
+        }
+        if (b > 100) return null to false
+        return b to false
+    }
+
+    fun format(left: Int?, right: Int?, chargingLeft: Boolean = false, chargingRight: Boolean = false): String {
+        fun one(name: String, p: Int?, c: Boolean) = p?.let { "$name $it%" + if (c) " charging" else "" }
+        return listOfNotNull(one("L", left, chargingLeft), one("R", right, chargingRight)).joinToString("  ").ifEmpty { "—" }
+    }
+
+    /** Lowest present earbud. Null when neither side is in use. */
+    fun lowest(left: Int?, right: Int?) = listOfNotNull(left, right).minOrNull()
+}
+
 /** ANC modes as used by protocol A (GET 0x0030 payload[0]). */
 enum class AncMode(val code: Int, val label: String) {
-    OFF(0, "Off / normal"), ANC(1, "Noise cancelling"), TRANSPARENCY(2, "Transparency / ambient"),
+    OFF(0, "Off"), ANC(1, "Noise cancelling"), TRANSPARENCY(2, "Ambient"),
     WIND(3, "Wind"), LEISURE(4, "Leisure"), CUSTOM(5, "Custom"), ADAPTIVE(6, "Adaptive");
     companion object { fun of(c: Int) = values().firstOrNull { it.code == c } }
 }

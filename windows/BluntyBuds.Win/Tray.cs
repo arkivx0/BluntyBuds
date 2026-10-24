@@ -23,7 +23,7 @@ public sealed class Tray : IDisposable
     {
         _menu.Items.Add("Open BluntyBuds", null, (_, _) => Safe(() => OpenRequested?.Invoke()));
         _menu.Items.Add(_sep1);
-        foreach (var (m, t) in new[] { (AncMode.Off, "Noise: Off"), (AncMode.Anc, "Noise: Cancelling"), (AncMode.Transparency, "Noise: Ambient"), (AncMode.Custom, "Noise: Custom level") })
+        foreach (var (m, t) in new[] { (AncMode.Off, "Off"), (AncMode.Anc, "Noise cancelling"), (AncMode.Transparency, "Ambient"), (AncMode.Custom, "Custom depth") })
         {
             var mm = m; var it = new F.ToolStripMenuItem(t); it.Click += (_, _) => Safe(() => AncRequested?.Invoke(mm));
             _anc[m] = it; _menu.Items.Add(it);
@@ -45,14 +45,14 @@ public sealed class Tray : IDisposable
     }
 
     /// <summary>Safe to call from any thread; marshalled to the UI thread. Never throws.</summary>
-    public void Update(string? model, int? l, int? r, bool connected, int? ancMode, Models.Features f, bool game)
+    public void Update(string? model, int? l, int? r, bool connected, int? ancMode, Models.Features f, bool game, bool chargingLeft = false, bool chargingRight = false)
     {
         var d = System.Windows.Application.Current?.Dispatcher;
-        if (d != null && !d.CheckAccess()) { d.BeginInvoke(() => Update(model, l, r, connected, ancMode, f, game)); return; }
+        if (d != null && !d.CheckAccess()) { d.BeginInvoke(() => Update(model, l, r, connected, ancMode, f, game, chargingLeft, chargingRight)); return; }
         if (_disposed) return;
         try
         {
-            string bat = $"L {(l is { } a ? a + "%" : "—")}  R {(r is { } b ? b + "%" : "—")}";
+            string bat = BatteryText.Format(l, r, chargingLeft, chargingRight);
             var tip = connected ? $"BluntyBuds · {model}\n{bat}" + (f.Anc && ancMode is { } m ? $"\nNoise: {(AncMode)m}" : "") : "BluntyBuds · not connected";
             _icon.Text = Clamp(tip);
             foreach (var (m2, it) in _anc) { it.Visible = connected && f.Anc && (m2 != AncMode.Custom || f.AncLevel); it.Checked = ancMode == (int)m2; }

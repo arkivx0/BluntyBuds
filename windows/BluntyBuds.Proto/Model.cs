@@ -13,8 +13,8 @@ public sealed record TouchAction(string Name, int A, int J, string Label)
     public static readonly TouchAction VolumeUp = new("VOLUME_UP", 5, 1, "Volume +");
     public static readonly TouchAction VolumeDown = new("VOLUME_DOWN", 6, 2, "Volume -");
     public static readonly TouchAction GameMode = new("GAME_MODE", 7, 100, "Toggle game mode");
-    public static readonly TouchAction AncSwitch = new("ANC_SWITCH", 8, 3, "Switch ANC mode");
-    public static readonly TouchAction AncOff = new("ANC_OFF", 10, 10, "ANC off / normal");
+    public static readonly TouchAction AncSwitch = new("ANC_SWITCH", 8, 3, "Switch noise mode");
+    public static readonly TouchAction AncOff = new("ANC_OFF", 10, 10, "Noise off");
     public static readonly IReadOnlyList<TouchAction> All = new[] { None, PlayPause, Next, Previous, Assistant, VolumeUp, VolumeDown, GameMode, AncSwitch, AncOff };
     public static TouchAction? FromA(int b) => All.FirstOrDefault(a => a.A == b);
     public static TouchAction? FromJ(int v) => All.FirstOrDefault(a => a.J == v);
@@ -48,7 +48,11 @@ public static class EqGrid
 
 public abstract record Event
 {
-    public sealed record Battery(int? Left, int? Right) : Event;
+    /// <summary>
+    /// One battery report. Snapshot replaces both sides (a missing side is not in use).
+    /// A partial report only changes the sides it names, so a left-only protocol-J packet does not wipe the right.
+    /// </summary>
+    public sealed record Battery(int? Left, int? Right, bool ChargingLeft = false, bool ChargingRight = false, bool Snapshot = false, bool ReportsLeft = true, bool ReportsRight = true) : Event;
     public sealed record Firmware(string Left, string? Right) : Event;
     public sealed record Game(bool On) : Event;
     public sealed record Touch(TouchMap Map) : Event;
@@ -58,6 +62,39 @@ public abstract record Event
     public sealed record Anc(int Mode) : Event;
     public sealed record AncLevel(int Level) : Event;
     public sealed record Raw(int Cmd, byte[] Payload) : Event;
+}
+
+/// <summary>Battery percent text for the window, the tray and alerts. A side that was not reported is omitted.</summary>
+public static class BatteryText
+{
+    /// <summary>0–100 is a percent. The high bit plus a percent of 0–100 means charging. 0xFF and other out-of-range values mean that earbud is absent.</summary>
+    public static (int? Percent, bool Charging) Parse(int raw)
+    {
+        int b = raw & 0xFF;
+        if (b == 0xFF) return (null, false);
+        if (b > 100 && (b & 0x80) != 0)
+        {
+            int p = b & 0x7F;
+            if (p <= 100) return (p, true);
+        }
+        if (b > 100) return (null, false);
+        return (b, false);
+    }
+
+    public static string Format(int? left, int? right, bool chargingLeft = false, bool chargingRight = false)
+    {
+        string? One(string name, int? p, bool c) => p is int v ? $"{name} {v}%" + (c ? " charging" : "") : null;
+        var parts = new[] { One("L", left, chargingLeft), One("R", right, chargingRight) }.Where(s => s is not null).ToArray();
+        return parts.Length == 0 ? "—" : string.Join("  ", parts);
+    }
+
+    /// <summary>Lowest present earbud. Null when neither side is in use, so a missing bud cannot trip a low-battery alert.</summary>
+    public static int? Lowest(int? left, int? right)
+    {
+        int? m = left;
+        if (right is int r) m = m is int x ? Math.Min(x, r) : r;
+        return m;
+    }
 }
 
 /// <summary>ANC modes as used by protocol A (GET 0x0030 payload[0]).</summary>

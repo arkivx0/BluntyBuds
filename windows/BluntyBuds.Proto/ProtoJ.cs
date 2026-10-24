@@ -83,8 +83,13 @@ public static class ProtoJ
     {
         switch (cmd)
         {
-            case BatteryLeft: return p.Length == 1 ? new Event.Battery(p[0], null) : new Event.Raw(cmd, p);
-            case BatteryRight: return p.Length == 1 ? new Event.Battery(null, p[0]) : new Event.Raw(cmd, p);
+            case BatteryLeft when p.Length == 1:
+                var (jl, jcl) = BatteryText.Parse(p[0]);
+                return new Event.Battery(jl, null, ChargingLeft: jcl, ReportsRight: false);
+            case BatteryRight when p.Length == 1:
+                var (jr, jcr) = BatteryText.Parse(p[0]);
+                return new Event.Battery(null, jr, ChargingRight: jcr, ReportsLeft: false);
+            case BatteryLeft or BatteryRight: return new Event.Raw(cmd, p);
             case GameGet: return p.Length == 1 ? new Event.Game(p[0] == 1) : new Event.Raw(cmd, p);
             case GameSet: case ButtonSet: case EqSet: return new Event.Ack(cmd, p.Length == 1 && p[0] == 1);
             case ButtonGet:
