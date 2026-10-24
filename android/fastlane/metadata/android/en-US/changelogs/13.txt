@@ -1,0 +1,4 @@
+- One earbud: battery shows only the bud in use. A missing bud is left out and does not keep its last percent. Charging is marked.
+- Loading an EQ profile sends it immediately.
+- The status notification is one card and appears as soon as notification permission is granted.
+- Noise buttons say Noise cancelling and Ambient. Touch actions say Switch noise mode and Noise off.

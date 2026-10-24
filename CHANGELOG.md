@@ -5,7 +5,7 @@
 ## 1.4.4
 - Names: the noise buttons say "Noise cancelling" and "Ambient". Touch actions say "Switch noise mode" and "Noise off". Ambient is the pass-through control.
 - Windows: the preset box is wider so long AutoEQ labels ("AutoEQ · NC9 (may differ by hardware revision)") are no longer cut off; the EQ tool row wraps on narrow windows.
-- Docs: screenshots recaptured for 1.4.1 (demo mode).
+- Docs: screenshots recaptured for 1.4.4 (demo mode).
 
 ## 1.4.2
 - One earbud: battery text, the tray, and alerts show only the bud that is in use. A missing bud is left out. It is not called disconnected and it does not keep the last percent. Low-battery alerts use only the bud you are wearing. A charging bud is marked "charging".

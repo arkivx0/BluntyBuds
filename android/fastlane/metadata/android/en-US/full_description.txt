@@ -2,7 +2,7 @@ BluntyBuds is a free, open-source, unofficial controller for TOZO Bluetooth earb
 
 <b>Privacy</b>
 <ul>
-<li>No INTERNET permission</li>
+<li>No INTERNET permission. On Android 10 and 11 it asks for location, which Android requires for Bluetooth scanning</li>
 <li>No account, no analytics, no ads, no auto-update</li>
 <li>No proprietary libraries</li>
 </ul>

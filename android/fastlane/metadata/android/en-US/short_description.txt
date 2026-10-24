@@ -1,1 +1,1 @@
-Offline TOZO earbud controller: ANC, AutoEQ, 10-band EQ, touch controls
+Offline TOZO earbud controller: noise control, AutoEQ, EQ, touch controls
