@@ -55,6 +55,8 @@ public sealed class MainWindow : Window
     readonly Dictionary<ulong, (string Name, short Rssi, AdParser.VendorAd? Ad)> _seen = new();
 
     const string NoBuds = "No earbuds found. Put them in pairing mode, then Scan.";
+    /// <summary>EQ block cap, in device-independent pixels. The block gives up height before any other row does.</summary>
+    const double EqMax = 160;
     readonly TextBlock _status = new() { Text = NoBuds, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 36, VerticalAlignment = VerticalAlignment.Center, FontSize = 12, ToolTip = NoBuds };
     readonly ComboBox _devices = new() { Width = 300, MaxDropDownHeight = 260 };
     readonly CheckBox _showAll = new() { Content = "All", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
@@ -88,6 +90,7 @@ public sealed class MainWindow : Window
     readonly Button _btnGestures, _btnPing;
     readonly TextBlock _lockHint = new() { Text = "Locked, tap to edit", FontSize = 12, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 8, 0), Visibility = Visibility.Collapsed };
     Border _tuneCard = null!, _listenCard = null!;
+    DockPanel _tuneHdr = null!, _profRow = null!;
     Grid _tuneSlot = null!;
     UIElement _balanceRow = null!, _lowLatRow = null!;
     readonly Path _lowLatIcon;
@@ -424,26 +427,32 @@ public sealed class MainWindow : Window
         _lock.Click += (_, _) => { _cfg.EqLocked = !_cfg.EqLocked; if (!_demo) _cfg.Save(); RenderLock(); ShowToast(_cfg.EqLocked ? "EQ locked" : "EQ unlocked"); };
         var soundBtn = B("Sound", (_, _) => { }); soundBtn.Margin = new Thickness(0);
         soundBtn.Click += (_, _) => Flyout(soundBtn, "Sound", SoundPanel(), PlacementMode.Bottom, 394);
-        var tuneHdr = new DockPanel { MinHeight = 32 };
-        DockPanel.SetDock(soundBtn, Dock.Right); tuneHdr.Children.Add(soundBtn);
-        tuneHdr.Children.Add(Row(new TextBlock { Text = "Tune", FontSize = 14, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) }, _lock, _lockHint));
+        _tuneHdr = new DockPanel { MinHeight = 32 };
+        DockPanel.SetDock(soundBtn, Dock.Right); _tuneHdr.Children.Add(soundBtn);
+        _tuneHdr.Children.Add(Row(new TextBlock { Text = "Tune", FontSize = 14, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) }, _lock, _lockHint));
         _profileBox.SelectionChanged += (_, _) => { if (!_suppressProfile && _profileBox.SelectedItem is string n && n != CustomItem) ApplyProfile(n); };
         var profMore = B("Edit", (_, _) => { }); profMore.Margin = new Thickness(8, 0, 0, 0); profMore.ToolTip = "Save, rename or delete Sound Profiles";
         profMore.Click += (_, _) => ProfileMenu(profMore, _selected);
-        var profRow = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
-        DockPanel.SetDock(profMore, Dock.Right); profRow.Children.Add(profMore); profRow.Children.Add(_profileBox);
-        var tuneBody = new DockPanel();
-        DockPanel.SetDock(tuneHdr, Dock.Top); tuneBody.Children.Add(tuneHdr);
-        var bottom = new StackPanel { Children = { profRow } };
-        DockPanel.SetDock(bottom, Dock.Bottom); tuneBody.Children.Add(bottom);
-        _eqGrid.Margin = new Thickness(0, 4, 0, 0); _eqGrid.Height = 160; _eqGrid.MaxHeight = 160;
-        // The Undo snackbar floats over the lower part of the sliders, never over the dropdown or the bottom row.
-        tuneBody.Children.Add(new Grid { Children = { _eqGrid, _snack } });
-        _tuneCard = Card(tuneBody); _tuneCard.VerticalAlignment = VerticalAlignment.Top;
-        _tuneSlot = new Grid();
-        _tuneSlot.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _profRow = new DockPanel { Margin = new Thickness(0, 4, 0, 0), MinHeight = 32 };
+        DockPanel.SetDock(profMore, Dock.Right); _profRow.Children.Add(profMore); _profRow.Children.Add(_profileBox);
+        // Header and Sound Profiles are Auto, so they keep their height. The EQ row is the only star and never grows past EqMax.
+        var tuneGrid = new Grid();
+        tuneGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        tuneGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MaxHeight = EqMax, MinHeight = 0 });
+        tuneGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        // The Undo snackbar floats over the lower part of the sliders, never over the dropdown.
+        var eqHost = new Grid { Margin = new Thickness(0, 4, 0, 0), ClipToBounds = true };
+        eqHost.Children.Add(_eqGrid); eqHost.Children.Add(_snack);
+        Grid.SetRow(_tuneHdr, 0); Grid.SetRow(eqHost, 1); Grid.SetRow(_profRow, 2);
+        tuneGrid.Children.Add(_tuneHdr); tuneGrid.Children.Add(eqHost); tuneGrid.Children.Add(_profRow);
+        _tuneCard = Card(tuneGrid); _tuneCard.VerticalAlignment = VerticalAlignment.Top;
+        // The slot stretches in the star row. The card must not: an Auto child measured with infinite height
+        // was arranged at its full desired height and painted the Sound Profiles row under the Balance card.
+        _tuneSlot = new Grid { ClipToBounds = true };
         _tuneSlot.Children.Add(_tuneCard);
         _tuneSlot.SizeChanged += (_, _) => FitEq();
+        _tuneHdr.SizeChanged += (_, _) => FitEq();
+        _profRow.SizeChanged += (_, _) => FitEq();
         Grid.SetRow(_tuneSlot, 1); _controls.Children.Add(_tuneSlot);
         var centre = B("Centre", (_, _) => _balance.Value = 0); centre.Margin = new Thickness(8, 0, 0, 0);
         _balanceRow = new Grid { MinHeight = 32 };
@@ -605,18 +614,39 @@ public sealed class MainWindow : Window
         _lockHint.Foreground = R("Accent");
         foreach (var s in _eq) s.Opacity = l ? 0.4 : 1;
         foreach (var t in _eqLbl) { t.Opacity = 1; t.Foreground = R("Fg"); }
+        FitEq();
     }
-    /// <summary>The EQ is the piece that shrinks on a short screen, and it never grows past 160.</summary>
+    bool _fitting;
+    /// <summary>
+    /// Keep the Tune card inside its row. Header and Sound Profiles stay full height; the EQ row shrinks, and never grows past <see cref="EqMax"/>.
+    /// </summary>
     void FitEq()
     {
+        if (_fitting || _tuneSlot == null || _tuneCard == null || _tuneHdr == null || _profRow == null) return;
         if (_tuneSlot.ActualHeight <= 0) return;
-        double eqH = _eqGrid.ActualHeight, cardH = _tuneCard.ActualHeight;
-        if (eqH < 1 || cardH < 1) return;
-        double chrome = cardH - eqH;
-        if (chrome < 24) return;
-        double room = _tuneSlot.ActualHeight - chrome - 4;
-        double h = room < 48 ? Math.Max(0, room) : Math.Min(160, room);
-        if (Math.Abs(_eqGrid.Height - h) > 0.5) _eqGrid.Height = h;
+        _fitting = true;
+        try
+        {
+            double maxCard = Math.Max(0, _tuneSlot.ActualHeight - _tuneCard.Margin.Top - _tuneCard.Margin.Bottom);
+            double chrome = _tuneCard.Padding.Top + _tuneCard.Padding.Bottom + Box(_tuneHdr) + Box(_profRow);
+            double natural = chrome + EqMax;
+            double h = Math.Min(maxCard, natural);
+            if (h < 1) return;
+            if (double.IsNaN(_tuneCard.Height) || Math.Abs(_tuneCard.Height - h) > 0.5) _tuneCard.Height = h;
+        }
+        finally { _fitting = false; }
+    }
+    /// <summary>Laid-out outer height of a row that must stay fully visible. Falls back while the first pass has not measured it yet.</summary>
+    static double Box(FrameworkElement e)
+    {
+        double h = e.ActualHeight;
+        if (h < 1)
+        {
+            if (e.MinHeight > 0) h = e.MinHeight;
+            else if (!double.IsNaN(e.Height) && e.Height > 0) h = e.Height;
+            else h = 32;
+        }
+        return h + e.Margin.Top + e.Margin.Bottom;
     }
     void ShowToast(string msg) => ShowSnack(msg, null);
     void ShowSnack(string msg, Action? undo)

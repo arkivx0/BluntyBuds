@@ -67,8 +67,6 @@ Release signing is read from a properties file **outside** the repo:
 Without it the release APK is built unsigned.
 
 ## Screenshots
-These pictures are the 1.4.9 captures. They do not yet show the shorter EQ, Balance and Low-Latency on the main screen, the privacy badge, or generic preset names.
-There is no `docs/hero.png`; the lead image is `docs/home.png`. Recapture the Windows set with `BluntyBuds.exe --demo` on a desktop. The Android app has no demo mode.
 
 ### Windows
 Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder address).

@@ -59,7 +59,7 @@ class MainActivity : Activity(), BleClient.Listener {
     private lateinit var status: TextView
     private lateinit var deviceSpinner: Spinner
     private lateinit var showAll: CheckBox
-    private lateinit var controls: LinearLayout
+    private lateinit var controls: FitColumn
     private lateinit var deviceName: TextView
     private lateinit var connDot: View
     private lateinit var chipL: TextView
@@ -167,7 +167,7 @@ class MainActivity : Activity(), BleClient.Listener {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (::eqFrame.isInitialized) eqFrame.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, eqHeightPx())
+        if (::controls.isInitialized) controls.requestLayout()
     }
 
     override fun onDestroy() { Conn.listeners.remove(this); main.removeCallbacks(renderTick); main.removeCallbacks(hideSnack); stopScan(); tone.stop(); super.onDestroy() }
@@ -202,12 +202,6 @@ class MainActivity : Activity(), BleClient.Listener {
 
     // ---------- UI helpers (dark, compact) ----------
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-    /** EQ stays short so Balance and Low-Latency fit, and gives up height on a short screen or a large font. */
-    private fun eqHeightPx(): Int {
-        val scale = resources.configuration.fontScale.coerceAtLeast(1f)
-        val room = (resources.configuration.screenHeightDp / scale - 500f).toInt()
-        return dp(room.coerceIn(72, 160))
-    }
     /** Sizes are in sp, so they grow with the system font and step down only when the line would clip. */
     private fun TextView.scaleToFit(minSp: Int, maxSp: Int) {
         setAutoSizeTextTypeUniformWithConfiguration(minSp, maxSp, 1, TypedValue.COMPLEX_UNIT_SP)
@@ -360,7 +354,7 @@ class MainActivity : Activity(), BleClient.Listener {
         }
         root.addView(status)
 
-        controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; alpha = 0.45f }
+        controls = FitColumn(this).apply { orientation = LinearLayout.VERTICAL; alpha = 0.45f }
         root.addView(controls, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
 
         // ---- noise: segmented control, Depth only where the device supports it ----
@@ -438,7 +432,9 @@ class MainActivity : Activity(), BleClient.Listener {
         val profRow = row(weight(profileSpinner), space(8), profMore).apply { setPadding(0, dp(4), 0, 0) }
         // The Undo snackbar floats over the lower part of the sliders, never over the dropdown or the bottom row.
         eqFrame = FrameLayout(this).apply { addView(eqRow, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)) }
-        val tune = card(tuneHeader, eqFrame.apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, eqHeightPx()) }, profRow)
+        // Height is assigned in FitColumn so the dropdown, Balance, Low-Latency and the tool row stay on screen.
+        val tune = card(tuneHeader, eqFrame.apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0) }, profRow)
+        controls.eq = eqFrame
         tune.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(8) }
         controls.addView(tune)
         refreshPresets()
@@ -1014,6 +1010,67 @@ class MainActivity : Activity(), BleClient.Listener {
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+
+    /**
+     * Home column. Every row except the EQ is measured at its natural height.
+     * The EQ gets whatever is left, and never more than 160dp, so the Sound Profiles
+     * row, Balance, Low-Latency and the tool row stay on screen without scrolling.
+     */
+    private inner class FitColumn(context: android.content.Context) : LinearLayout(context) {
+        var eq: View? = null
+
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val eqView = eq
+            val tune = eqView?.parent as? View
+            val mode = View.MeasureSpec.getMode(heightMeasureSpec)
+            val size = View.MeasureSpec.getSize(heightMeasureSpec)
+            val width = View.MeasureSpec.getSize(widthMeasureSpec)
+            if (eqView == null || tune == null || tune.parent !== this || mode == View.MeasureSpec.UNSPECIFIED || size == 0 || width == 0) {
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                return
+            }
+            val unspecified = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            var fixed = paddingTop + paddingBottom
+            for (i in 0 until childCount) {
+                val child = getChildAt(i)
+                if (child === tune || child.visibility == GONE) continue
+                val lp = child.layoutParams as ViewGroup.MarginLayoutParams
+                measureChildWithMargins(child, widthMeasureSpec, 0, unspecified, 0)
+                fixed += child.measuredHeight + lp.topMargin + lp.bottomMargin
+            }
+            val tuneLp = tune.layoutParams as ViewGroup.MarginLayoutParams
+            val avail = (size - fixed - tuneLp.topMargin - tuneLp.bottomMargin).coerceAtLeast(0)
+            val tuneInner = (width - paddingLeft - paddingRight - tuneLp.leftMargin - tuneLp.rightMargin - tune.paddingLeft - tune.paddingRight).coerceAtLeast(0)
+            val tuneChildW = View.MeasureSpec.makeMeasureSpec(tuneInner, View.MeasureSpec.EXACTLY)
+            val tuneGroup = tune as ViewGroup
+            var chrome = tune.paddingTop + tune.paddingBottom
+            for (i in 0 until tuneGroup.childCount) {
+                val c = tuneGroup.getChildAt(i)
+                if (c === eqView || c.visibility == GONE) continue
+                val lp = c.layoutParams as ViewGroup.MarginLayoutParams
+                c.measure(getChildMeasureSpec(tuneChildW, 0, lp.width), unspecified)
+                chrome += c.measuredHeight + lp.topMargin + lp.bottomMargin
+            }
+            val eqLp = eqView.layoutParams as ViewGroup.MarginLayoutParams
+            var eqH = (avail - chrome - eqLp.topMargin - eqLp.bottomMargin).coerceIn(0, dp(160))
+            eqLp.height = eqH
+            val childW = View.MeasureSpec.makeMeasureSpec((width - paddingLeft - paddingRight - tuneLp.leftMargin - tuneLp.rightMargin).coerceAtLeast(0), View.MeasureSpec.EXACTLY)
+            tune.measure(childW, unspecified)
+            val overflow = tune.measuredHeight - avail
+            if (overflow > 0) {
+                eqH = (eqH - overflow).coerceAtLeast(0)
+                eqLp.height = eqH
+                tune.measure(childW, unspecified)
+            }
+            val used = fixed + tune.measuredHeight + tuneLp.topMargin + tuneLp.bottomMargin
+            val measuredH = when (mode) {
+                View.MeasureSpec.EXACTLY -> size
+                View.MeasureSpec.AT_MOST -> used.coerceAtMost(size)
+                else -> used
+            }
+            setMeasuredDimension(width, measuredH)
+        }
+    }
 }
 
 /** Reads at most [max] bytes (InputStream.readNBytes needs API 33). */

@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.4.10
 
 - Home stays one dark screen with no scrolling. The EQ is shorter, and L-R Balance and Low-Latency sit on the main screen. Gestures and Ping Buds stay as buttons.
+- Sound Profiles (the dropdown and Edit) stay visible. The EQ shrinks so every row fits, with no overlap, at the default window size and at the minimum height.
 - The top badge is a privacy control (a shield: Bluetooth only, no network, no analytics), not a connection status. The "Solo" word is gone; the L/R chips already show which earbud is in use, and those chips are at least 40 px / 40 dp.
 - A missing earbud reads "In case". With no link, the pills read "Not connected". The case percent is no longer clipped while charging.
 - Device names keep more of the top strip. Status text wraps, and the full message stays in a tooltip. An empty scan says to put the earbuds in pairing mode, then Scan.
