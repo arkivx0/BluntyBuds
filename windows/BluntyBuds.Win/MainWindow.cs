@@ -700,10 +700,17 @@ public sealed class MainWindow : Window
         _devItems.Add(item); _devices.SelectedItem = item;
         _model = item.Model;
         ApplyModel(); SetConnectedUi(true);
+        // The preset name has to match the sliders. The old handmade curve boosted, which the AutoEQ profile does not.
+        var (ae, sure) = MyAutoEqMatch;
+        if (ae is not null)
+        {
+            RefreshPresets(AutoEq.SuggestLabel(ae, sure));
+            SetEq(ae.Gains);
+        }
         foreach (var e in new Event[] { new Event.Battery(85, null, ChargingLeft: true, Snapshot: true), new Event.Firmware("1.0.0", "1.0.0"), new Event.Anc((int)AncMode.Anc),
-                     new Event.Game(false), new Event.Eq(new float[] { 3, 2, 1, 0, 0, 0, 1, 2, 2, 1 }), new Event.Balance(0), new Event.Touch(TouchMap.Defaults()) })
+                     new Event.Game(false), new Event.Balance(0), new Event.Touch(TouchMap.Defaults()) })
             OnEvent(e);
-        _status.Text = "Demo mode: made-up data, Bluetooth not used";
+        _status.Text = "Demo mode: made-up battery and address, Bluetooth not used";
     }
 
     async Task RefreshAll()

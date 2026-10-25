@@ -9,7 +9,7 @@ no internet permission, no account, no analytics, no auto-update.
 
 Unofficial: not affiliated with or endorsed by TOZO. Tested on NC9 and A1; other models are detected and marked untested.
 
-![BluntyBuds on Windows (demo mode, made-up data)](docs/hero.png)
+![BluntyBuds on Windows (demo mode: one charging earbud, built-in NC9 profile)](docs/hero.png)
 
 ## Why this exists
 The official app asks for roughly 39 permissions, including your microphone and your location in the background. It is built around user accounts, ships with analytics and push-notification services, bundles voice chat, and keeps checking in with the vendor's servers. All of that just to change an EQ and read a battery level.
@@ -59,9 +59,9 @@ Release signing is read from a properties file **outside** the repo:
 Without it the release APK is built unsigned.
 
 ## Screenshots
-![AutoEQ profiles in the preset list (demo mode, made-up data)](docs/autoeq-presets.png)
+![AutoEQ profiles in the preset list (demo mode, built-in NC9 profile)](docs/autoeq-presets.png)
 
-![Touch-control mapping (demo mode, made-up data)](docs/touch-controls.png)
+![Touch-control mapping (demo mode)](docs/touch-controls.png)
 
 ## Model support
 
