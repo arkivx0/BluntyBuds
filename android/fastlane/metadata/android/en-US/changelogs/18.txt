@@ -1,0 +1,1 @@
+Sound Profiles are a compact dropdown again: pick one and it applies at once, with Undo. Save, rename and delete sit behind the Edit button. Gestures is simpler: one dropdown per gesture and side, only for gestures your earbuds report, sent as soon as you change it. Android connects exactly like 1.4.4 again.

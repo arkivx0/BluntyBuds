@@ -36,6 +36,8 @@ import io.github.arkivx0.bluntybuds.proto.*
  * compact sheets (Gestures, L-R Balance, Low-Latency, Ping Buds).
  */
 @SuppressLint("MissingPermission", "SetTextI18n")
+private const val CUSTOM_ITEM = "Custom (unsaved)"
+
 class MainActivity : Activity(), BleClient.Listener {
     companion object {
         // Background, surfaces, one accent. 8 dp grid, 32 dp rows, 13-14 sp text.
@@ -70,7 +72,11 @@ class MainActivity : Activity(), BleClient.Listener {
     private val eqLabels = ArrayList<TextView>()
     private lateinit var eqRow: LinearLayout
     private lateinit var lockBtn: ImageView
-    private lateinit var chipRow: LinearLayout
+    private lateinit var profileSpinner: Spinner
+    private lateinit var eqFrame: FrameLayout
+    private var suppressProfile = false
+    private var suppressTouch = false
+    private val gestureRows = HashMap<Gesture, List<View>>()
     private var selectedProfile: String? = null
     private val touchSpinners = HashMap<Pair<Boolean, Gesture>, Spinner>()
     private lateinit var balanceBar: SeekBar
@@ -367,10 +373,22 @@ class MainActivity : Activity(), BleClient.Listener {
             eqRow.addView(c)
         }
         for (i in 0 until 10) updateEqLabel(i)
-        chipRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val chipScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(chipRow) }
-        val tune = card(tuneHeader, eqRow.apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f) },
-            text("Sound Profiles", 12f, DIM).apply { setPadding(0, 0, 0, dp(4)) }, chipScroll)
+        // Sound Profiles: a compact dropdown that applies on selection; save / rename / delete sit behind the Edit button.
+        profileSpinner = spinner(listOf(CUSTOM_ITEM)).apply {
+            contentDescription = "Sound Profile"
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                    val n = p?.getItemAtPosition(pos) as? String ?: return
+                    if (!suppressProfile && n != CUSTOM_ITEM && n != selectedProfile) applyProfile(n)
+                }
+                override fun onNothingSelected(p: AdapterView<*>?) {}
+            }
+        }
+        val profMore = btn("Edit") { profileMenu(selectedProfile) }.apply { contentDescription = "Save, rename or delete Sound Profiles"; (layoutParams as LinearLayout.LayoutParams).marginEnd = 0 }
+        val profRow = row(weight(profileSpinner), space(8), profMore).apply { setPadding(0, dp(4), 0, 0) }
+        // The Undo snackbar floats over the lower part of the sliders, never over the dropdown or the bottom row.
+        eqFrame = FrameLayout(this).apply { addView(eqRow, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)) }
+        val tune = card(tuneHeader, eqFrame.apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f) }, profRow)
         tune.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f).apply { bottomMargin = dp(8) }
         controls.addView(tune)
         refreshPresets()
@@ -404,7 +422,7 @@ class MainActivity : Activity(), BleClient.Listener {
             setPadding(dp(16), 0, dp(8), 0); minHeight = dp(ROW); gravity = Gravity.CENTER_VERTICAL
             setOnClickListener { val u = snackUndo; main.removeCallbacks(hideSnack); hideSnack.run(); u?.invoke() }
         }).apply { background = round(CTL, 8, LINE); setPadding(dp(16), dp(4), dp(8), dp(4)); visibility = View.GONE; elevation = dp(6).toFloat() }
-        frame.addView(snack, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(16), 0, dp(16), dp(96)) })
+        eqFrame.addView(snack, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(0, 0, 0, dp(24)) })
 
         // Edge-to-edge: content stays clear of the status bar, camera cutout and navigation bar; the background fills behind them.
         frame.setOnApplyWindowInsetsListener { v, insets -> val (l, t, r, b) = barInsets(insets); v.setPadding(l, t, r, b); insets }
@@ -436,13 +454,22 @@ class MainActivity : Activity(), BleClient.Listener {
         grid.addView(cell(text("", 12f), 0, 0.8f)); grid.addView(cell(text("Left", 12f, DIM), 1, 1f)); grid.addView(cell(text("Right", 12f, DIM), 2, 1f))
         val actions = TouchAction.entries.map { it.label }
         for (g in Gesture.entries) {
-            grid.addView(cell(text(g.label, 13f), 0, 0.8f))
+            val views = mutableListOf<View>(cell(text(g.label, 13f), 0, 0.8f))
             for (left in listOf(true, false)) {
                 val sp = spinner(actions); touchSpinners[left to g] = sp
-                grid.addView(cell(sp, if (left) 1 else 2, 1f))
+                sp.contentDescription = "${if (left) "Left" else "Right"} ${g.label.lowercase()}"
+                sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                        if (!suppressTouch && ble.protocol != null && touchUi() != touch) { sendTouch(); toast("Gestures sent") }
+                    }
+                    override fun onNothingSelected(p: AdapterView<*>?) {}
+                }
+                views += cell(sp, if (left) 1 else 2, 1f)
             }
+            views.forEach { grid.addView(it) }; gestureRows[g] = views
         }
-        gestureSheet = col(grid, row(btn("Defaults") { touch = TouchMap.defaults(); renderTouch() }, btn("Apply", accent = true) { sendTouch(); toast("Gestures sent") }).apply { setPadding(0, dp(8), 0, 0) })
+        // One dropdown per gesture and side, only for gestures the earbuds report; changes are sent right away.
+        gestureSheet = col(grid, row(btn("Defaults") { touch = TouchMap.defaults(); renderTouch(); if (ble.protocol != null) { sendTouch(); toast("Gestures sent") } }).apply { setPadding(0, dp(8), 0, 0) })
 
         // L-R Balance (sent on release)
         balanceLabel = text("0", 13f, FG).apply { width = dp(32); gravity = Gravity.END }
@@ -467,7 +494,6 @@ class MainActivity : Activity(), BleClient.Listener {
 
         // Sound: profile files and corrections
         soundSheet = col(
-            text("Tap a Sound Profile chip to apply it. Long-press a chip to save or rename.", 12f, DIM).apply { setPadding(0, 0, 0, dp(8)) },
             row(btn("Import Correction") { importAutoEq() }, btn("Save as new…") { savePresetDialog() }),
             row(btn("Import profiles") { importPresets() }, btn("Export profiles") { exportPresets() }).apply { setPadding(0, dp(8), 0, 0) },
             text("Import Correction loads an AutoEQ ParametricEQ.txt or GraphicEQ.txt and fits it to the 10 bands, offline.", 12f, DIM).apply { setPadding(0, dp(8), 0, 0) })
@@ -607,16 +633,12 @@ class MainActivity : Activity(), BleClient.Listener {
         renderChips()
     }
     private fun renderChips() {
-        chipRow.removeAllViews()
-        val on = controls.alpha >= 1f
-        for (n in presetMap().keys) {
-            chipRow.addView(chip(n, n == selectedProfile).apply {
-                isEnabled = on
-                setOnClickListener { applyProfile(n) }
-                setOnLongClickListener { profileMenu(n); true }
-            })
-        }
-        chipRow.addView(chip("+ Save", false).apply { isEnabled = on; setTextColor(ACCENT); setOnClickListener { savePresetDialog() }; contentDescription = "Save current Tune as a Sound Profile" })
+        val items = presetMap().keys.toMutableList().also { if (selectedProfile == null) it.add(0, CUSTOM_ITEM) }
+        suppressProfile = true
+        profileSpinner.adapter = darkAdapter(items)
+        profileSpinner.setSelection(items.indexOf(selectedProfile ?: CUSTOM_ITEM).coerceAtLeast(0), false)
+        profileSpinner.isEnabled = controls.alpha >= 1f
+        main.post { suppressProfile = false }
     }
     /** Tap a chip: applied to the earbuds immediately, with a 3-second Undo. */
     private fun applyProfile(n: String) {
@@ -634,13 +656,13 @@ class MainActivity : Activity(), BleClient.Listener {
         snackText.text = msg; snackUndo = undo; snack.visibility = View.VISIBLE
         main.removeCallbacks(hideSnack); main.postDelayed(hideSnack, 3000)
     }
-    /** Long press: save the current Tune into a profile, or rename / delete your own. */
-    private fun profileMenu(n: String) {
-        if (isFixed(n)) {
-            AlertDialog.Builder(this).setTitle(n).setItems(arrayOf("Save current Tune as new profile…")) { _, _ -> savePresetDialog() }.show()
+    /** Edit next to the dropdown: save the current Tune as a profile, or save into / rename / delete your own. */
+    private fun profileMenu(n: String?) {
+        if (n == null || isFixed(n)) {
+            AlertDialog.Builder(this).setTitle(n ?: "Sound Profiles").setItems(arrayOf("Save current Tune as new profile…")) { _, _ -> savePresetDialog() }.show()
             return
         }
-        AlertDialog.Builder(this).setTitle(n).setItems(arrayOf("Save current Tune to “$n”", "Rename…", "Delete")) { _, w ->
+        AlertDialog.Builder(this).setTitle(n).setItems(arrayOf("Save current Tune to “$n”", "Rename…", "Delete", "Save current Tune as new profile…")) { _, w ->
             when (w) {
                 0 -> { presets.save(n, eqUi()); refreshPresets(n); toast("Saved “$n”") }
                 1 -> nameDialog("Rename Sound Profile", n) { nn ->
@@ -650,6 +672,7 @@ class MainActivity : Activity(), BleClient.Listener {
                     refreshPresets(if (selectedProfile == n) nn else selectedProfile)
                 }
                 2 -> { presets.delete(n); refreshPresets(if (selectedProfile == n) null else selectedProfile) }
+                3 -> savePresetDialog()
             }
         }.show()
     }
@@ -689,7 +712,7 @@ class MainActivity : Activity(), BleClient.Listener {
                     if (ble.protocol != null) {
                         sendEq()
                         showUndo("Correction applied") { setEqUi(prev); selectedProfile = prevSel; renderChips(); sendEq() }
-                    } else toast("Correction fitted to Tune. It is sent when the earbuds connect; long-press + Save to keep it")
+                    } else toast("Correction fitted to Tune. It is sent when the earbuds connect; use Edit › Save to keep it")
                 }
                 RC_EXPORT -> {
                     contentResolver.openOutputStream(uri, "wt")?.use { it.write(presets.exportJson().toByteArray()) }
@@ -700,6 +723,8 @@ class MainActivity : Activity(), BleClient.Listener {
     }
 
     private fun renderTouch() {
+        suppressTouch = true
+        main.post { suppressTouch = false }
         for ((k, sp) in touchSpinners) {
             val v = if (k.first) touch.left[k.second.slot] else touch.right[k.second.slot]
             val a = TouchAction.fromA(v) ?: TouchAction.NONE
@@ -796,8 +821,7 @@ class MainActivity : Activity(), BleClient.Listener {
                 .forEach { send(ProtoA.get(it)) }
             Protocol.J -> {
                 Conn.beginBatteryPoll()
-                listOf(ProtoJ.BATTERY_LEFT, ProtoJ.BATTERY_RIGHT, ProtoJ.VERSION, ProtoJ.GAME_GET,
-                    ProtoJ.BUTTON_GET, ProtoJ.EQ_GET).forEach { send(ProtoJ.get(it)) }
+                ProtoJ.STATUS_QUERIES.forEach { send(ProtoJ.get(it)) }
             }
             null -> {}
         }
@@ -861,6 +885,8 @@ class MainActivity : Activity(), BleClient.Listener {
             is Event.Firmware -> firmware.text = "FW ${e.left}" + (e.right?.takeIf { it != e.left }?.let { " / $it" } ?: "")
             is Event.Game -> { suppress = true; game.isChecked = e.on; suppress = false; renderLowLat(e.on) }
             is Event.Touch -> {
+                val sup = e.map.supported()
+                for ((g, vs) in gestureRows) vs.forEach { it.visibility = if (g in sup) View.VISIBLE else View.GONE }
                 for (i in 0 until 5) { if (e.map.left[i] >= 0) touch.left[i] = e.map.left[i]; if (e.map.right[i] >= 0) touch.right[i] = e.map.right[i] }
                 renderTouch()
             }

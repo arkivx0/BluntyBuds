@@ -59,7 +59,10 @@ public sealed class MainWindow : Window
     readonly Slider[] _eq = new Slider[10];
     readonly TextBlock[] _eqLbl = new TextBlock[10];
     readonly UniformGrid _eqGrid = new() { Columns = 10 };
-    readonly StackPanel _chips = new() { Orientation = Orientation.Horizontal };
+    /// <summary>Sound Profiles dropdown: applies on selection (no Apply step), with Undo.</summary>
+    readonly ComboBox _profileBox = new() { Height = 32, MaxDropDownHeight = 320, ToolTip = "Sound Profile: applied as soon as you pick it" };
+    const string CustomItem = "Custom (unsaved)";
+    bool _suppressProfile, _suppressTouch;
     readonly Button _lock = new() { Width = 32, Height = 32, Padding = new Thickness(0) };
     string? _selected;
     readonly Dictionary<(bool Left, Gesture G), ComboBox> _touch = new();
@@ -74,7 +77,7 @@ public sealed class MainWindow : Window
     readonly Button _restoreEq;
     readonly Button _btnGestures, _btnBalance, _btnLowLat, _btnPing;
     readonly Path _lowLatIcon;
-    readonly Border _snack = new() { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 80), Padding = new Thickness(16, 4, 8, 4), CornerRadius = new CornerRadius(8), MinWidth = 280 };
+    readonly Border _snack = new() { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 28), Padding = new Thickness(16, 4, 8, 4), CornerRadius = new CornerRadius(8), MinWidth = 280 };
     readonly TextBlock _snackText = new() { VerticalAlignment = VerticalAlignment.Center, FontSize = 13 };
     readonly Button _snackUndo = new() { Content = "Undo", Margin = new Thickness(16, 0, 0, 0) };
     readonly DispatcherTimer _snackTimer = new() { Interval = TimeSpan.FromSeconds(3) };
@@ -92,7 +95,6 @@ public sealed class MainWindow : Window
     readonly DispatcherTimer _levelDebounce = new() { Interval = TimeSpan.FromMilliseconds(350) };
     readonly DispatcherTimer _eqDebounce = new() { Interval = TimeSpan.FromMilliseconds(350) };
     readonly DispatcherTimer _balDebounce = new() { Interval = TimeSpan.FromMilliseconds(350) };
-    readonly DispatcherTimer _hold = new() { Interval = TimeSpan.FromMilliseconds(600) };
     readonly Dictionary<ulong, (string Name, string Kind, bool Connected)> _paired = new();
     DeviceModel _model = DeviceModel.Unknown;
     ulong? _connectedAddr;
@@ -100,12 +102,13 @@ public sealed class MainWindow : Window
     int? _ancMode;
     bool _connecting, _userDisconnected, _lowWarned, _quitting, _closeHintThisSession;
     TouchMap _map = TouchMap.Defaults();
+    /// <summary>Gestures the connected earbuds reported; all four until they report.</summary>
+    IReadOnlyList<Gesture> _gestures = Enum.GetValues<Gesture>();
     int? _bl, _br, _case;
     bool _cl, _cr, _caseCharging;
     int _batGen;
     bool _sawL, _sawR;
     bool _suppress, _suppressEq;
-    string? _holdName; bool _holdFired;
 
     // global hotkey Ctrl+Alt+N = cycle noise mode
     const int HotkeyId = 0x7A01, MOD_ALT = 1, MOD_CONTROL = 2, MOD_NOREPEAT = 0x4000, VK_N = 0x4E, WM_HOTKEY = 0x0312;
@@ -178,7 +181,6 @@ public sealed class MainWindow : Window
         _btnPing = Tool(IconPath(IcPing, R("Fg")), "Ping Buds", b => Flyout(b, "Ping Buds", PingPanel()));
         var host = new Grid();
         host.Children.Add(Build());
-        host.Children.Add(_snack);
         Content = host;
         _ble.Status += s => Ui(() => _status.Text = s + UntestedTag);
         _ble.EventReceived += e => Ui(() => { try { OnEvent(e); } catch (Exception ex) { Program.Log(ex, "event"); } });
@@ -191,7 +193,6 @@ public sealed class MainWindow : Window
         _eqDebounce.Tick += (_, _) => A(async () => { _eqDebounce.Stop(); await SendEq(); })(this, new RoutedEventArgs());
         _balDebounce.Tick += (_, _) => A(async () => { _balDebounce.Stop(); await SendBalance(); })(this, new RoutedEventArgs());
         _snackTimer.Tick += (_, _) => HideSnack();
-        _hold.Tick += (_, _) => { _hold.Stop(); if (_holdName is { } n && _chips.Children.OfType<Button>().FirstOrDefault(c => (string?)c.Tag == n) is { } c) { _holdFired = true; ProfileMenu(c, n); } };
 
         _tray.OpenRequested += () => Ui(ShowFromTray);
         _tray.QuitRequested += () => Ui(() => { _quitting = true; Close(); });
@@ -384,15 +385,18 @@ public sealed class MainWindow : Window
         var tuneHdr = new DockPanel { Height = 32 };
         DockPanel.SetDock(soundBtn, Dock.Right); tuneHdr.Children.Add(soundBtn);
         tuneHdr.Children.Add(Row(new TextBlock { Text = "Tune", FontSize = 14, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) }, _lock));
-        var chipScroll = new ScrollViewer { Content = _chips, HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Height = 32 };
-        chipScroll.PreviewMouseWheel += (_, e) => { chipScroll.ScrollToHorizontalOffset(chipScroll.HorizontalOffset - e.Delta / 2.0); e.Handled = true; };
+        _profileBox.SelectionChanged += (_, _) => { if (!_suppressProfile && _profileBox.SelectedItem is string n && n != CustomItem) ApplyProfile(n); };
+        var profMore = B("Edit", (_, _) => { }); profMore.Margin = new Thickness(8, 0, 0, 0); profMore.ToolTip = "Save, rename or delete Sound Profiles";
+        profMore.Click += (_, _) => ProfileMenu(profMore, _selected);
+        var profRow = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+        DockPanel.SetDock(profMore, Dock.Right); profRow.Children.Add(profMore); profRow.Children.Add(_profileBox);
         var tuneBody = new DockPanel();
         DockPanel.SetDock(tuneHdr, Dock.Top); tuneBody.Children.Add(tuneHdr);
-        var profLbl = Lbl("Sound Profiles · tap to apply · hold or right-click to save or rename", 12); profLbl.Margin = new Thickness(0, 4, 0, 4);
-        var bottom = new StackPanel { Children = { profLbl, chipScroll } };
+        var bottom = new StackPanel { Children = { profRow } };
         DockPanel.SetDock(bottom, Dock.Bottom); tuneBody.Children.Add(bottom);
         _eqGrid.Margin = new Thickness(0, 4, 0, 0);
-        tuneBody.Children.Add(_eqGrid);
+        // The Undo snackbar floats over the lower part of the sliders, never over the dropdown or the bottom row.
+        tuneBody.Children.Add(new Grid { Children = { _eqGrid, _snack } });
         var tuneCard = Card(tuneBody);
         Grid.SetRow(tuneCard, 1); _controls.Children.Add(tuneCard);
         RefreshPresets(_cfg.LastPreset);
@@ -444,32 +448,36 @@ public sealed class MainWindow : Window
     void BuildTouchGrid()
     {
         var touch = _touchGrid;
+        touch.Children.Clear(); touch.RowDefinitions.Clear(); touch.ColumnDefinitions.Clear(); _touch.Clear();
         touch.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        touch.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+        touch.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
         touch.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
-        touch.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+        touch.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
         touch.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         void Put(UIElement e, int r, int c) { Grid.SetRow(e, r); Grid.SetColumn(e, c); touch.Children.Add(e); }
         var lh = Lbl("Left", 12); lh.Margin = new Thickness(0, 0, 0, 4); Put(lh, 0, 1);
         var rh = Lbl("Right", 12); rh.Margin = new Thickness(0, 0, 0, 4); Put(rh, 0, 3);
         int row = 1;
-        foreach (var g in Enum.GetValues<Gesture>())
+        foreach (var g in _gestures)
         {
             touch.RowDefinitions.Add(new RowDefinition { Height = new GridLength(36) });
-            var gl = Lbl(g + (g == Gesture.Long ? " press" : " tap"), 13, dim: false); gl.Margin = new Thickness(0, 0, 12, 0);
+            var gl = Lbl(g.Label(), 13, dim: false); gl.Margin = new Thickness(0, 0, 12, 0); gl.VerticalAlignment = VerticalAlignment.Center;
             Put(gl, row, 0);
             foreach (var isLeft in new[] { true, false })
             {
-                var cb = new ComboBox { ItemsSource = TouchAction.All, Margin = new Thickness(0, 2, 0, 2), Height = 32 };
+                var cb = new ComboBox { ItemsSource = TouchAction.All, Margin = new Thickness(0, 2, 0, 2), Height = 32, MaxDropDownHeight = 320 };
+                AutomationName(cb, $"{(isLeft ? "Left" : "Right")} {g.Label().ToLowerInvariant()}");
+                cb.SelectionChanged += (_, _) => { if (!_suppressTouch && _ble.Protocol.HasValue) A(async () => { await SendTouch(); ShowToast("Gestures sent"); })(this, new RoutedEventArgs()); };
                 _touch[(isLeft, g)] = cb; Put(cb, row, isLeft ? 1 : 3);
             }
             row++;
         }
         RenderTouch();
     }
+    /// <summary>Gestures: one dropdown per gesture and side, only for gestures the earbuds report. Changes are sent right away.</summary>
     UIElement GesturesPanel() => _gesturesPanel ??= new StackPanel
     {
-        Children = { _touchGrid, Row(B("Apply", A(async () => { await SendTouch(); ShowToast("Gestures sent"); }), accent: true), B("Defaults", (_, _) => { _map = TouchMap.Defaults(); RenderTouch(); })) }
+        Children = { _touchGrid, new Border { Height = 4 }, Row(B("Defaults", A(async () => { _map = TouchMap.Defaults(); RenderTouch(); if (_ble.Protocol.HasValue) { await SendTouch(); ShowToast("Gestures sent"); } }))) }
     };
     UIElement BalancePanel() => _balancePanel ??= new StackPanel
     {
@@ -487,8 +495,7 @@ public sealed class MainWindow : Window
         Width = 360,
         Children =
         {
-            Lbl("Tap a Sound Profile chip to apply it. Hold or right-click a chip to save or rename.", 12), new Border { Height = 8 },
-            WrapRow(B("Import Correction", (_, _) => ImportAutoEq()), B("Save as new…", (_, _) => SavePreset()), B("Import profiles", (_, _) => ImportPresets()), B("Export profiles", (_, _) => ExportPresets()), _restoreEq),
+                        WrapRow(B("Import Correction", (_, _) => ImportAutoEq()), B("Save as new…", (_, _) => SavePreset()), B("Import profiles", (_, _) => ImportPresets()), B("Export profiles", (_, _) => ExportPresets()), _restoreEq),
             Lbl("Import Correction loads an AutoEQ ParametricEQ.txt or GraphicEQ.txt and fits it to the 10 bands, offline.", 12)
         }
     };
@@ -940,7 +947,7 @@ public sealed class MainWindow : Window
         else if (_ble.Protocol == Protocol.J)
         {
             int gen = ++_batGen; _sawL = _sawR = false;
-            foreach (var c in new[] { ProtoJ.BatteryLeft, ProtoJ.BatteryRight, ProtoJ.Version, ProtoJ.GameGet, ProtoJ.ButtonGet, ProtoJ.EqGet })
+            foreach (var c in ProtoJ.StatusQueries)
                 await _ble.SendAsync(ProtoJ.Get(c));
             await Task.Delay(1500);
             if (gen != _batGen) return;
@@ -984,8 +991,13 @@ public sealed class MainWindow : Window
     }
     void RenderTouch()
     {
-        foreach (var ((left, g), cb) in _touch)
-            cb.SelectedItem = TouchAction.FromA((left ? _map.Left : _map.Right)[(int)g]) ?? TouchAction.None;
+        _suppressTouch = true;
+        try
+        {
+            foreach (var ((left, g), cb) in _touch)
+                cb.SelectedItem = TouchAction.FromA((left ? _map.Left : _map.Right)[(int)g]) ?? TouchAction.None;
+        }
+        finally { _suppressTouch = false; }
     }
     Task SendTouch()
     {
@@ -1008,21 +1020,15 @@ public sealed class MainWindow : Window
     }
     void RenderChips()
     {
-        _chips.Children.Clear();
-        foreach (var n in PresetMap().Keys)
+        _suppressProfile = true;
+        try
         {
-            var c = new Button { Content = n, Tag = n, Style = (Style)FindResource(n == _selected ? "ChipOn" : "Chip") };
-            var nn = n;
-            c.Click += (_, _) => { if (_holdFired) { _holdFired = false; return; } ApplyProfile(nn); };
-            c.PreviewMouseLeftButtonDown += (_, _) => { _holdName = nn; _holdFired = false; _hold.Stop(); _hold.Start(); };
-            c.PreviewMouseLeftButtonUp += (_, _) => _hold.Stop();
-            c.MouseLeave += (_, _) => _hold.Stop();
-            c.MouseRightButtonUp += (_, e) => { e.Handled = true; ProfileMenu(c, nn); };
-            _chips.Children.Add(c);
+            var items = PresetMap().Keys.ToList();
+            if (_selected is null) items.Insert(0, CustomItem);
+            _profileBox.ItemsSource = items;
+            _profileBox.SelectedItem = _selected ?? CustomItem;
         }
-        var add = new Button { Content = "+ Save", Style = (Style)FindResource("Chip"), Foreground = R("Accent"), ToolTip = "Save the current Tune as a Sound Profile" };
-        add.Click += (_, _) => SavePreset();
-        _chips.Children.Add(add);
+        finally { _suppressProfile = false; }
     }
     /// <summary>Tap a chip: applied to the earbuds immediately, with a 3-second Undo.</summary>
     async void ApplyProfile(string n)
@@ -1044,13 +1050,13 @@ public sealed class MainWindow : Window
         }
         catch (Exception ex) { Program.Log(ex, "apply profile"); _status.Text = "Couldn't apply: " + ex.Message; }
     }
-    /// <summary>Hold or right-click a chip: save the current Tune into it, rename or delete your own profiles.</summary>
-    void ProfileMenu(FrameworkElement anchor, string n)
+    /// <summary>Edit next to the dropdown: save the current Tune, rename or delete your own profiles.</summary>
+    void ProfileMenu(FrameworkElement anchor, string? n)
     {
         var sp = new StackPanel();
-        if (IsFixed(n))
+        if (n is null || IsFixed(n))
         {
-            sp.Children.Add(Lbl("Built-in profile", 12));
+            sp.Children.Add(Lbl(n is null ? "Current Tune is not saved" : "Built-in profile", 12));
             sp.Children.Add(new Border { Height = 8 });
             sp.Children.Add(B("Save current Tune as new…", (_, _) => { CloseFlyout(); SavePreset(); }));
         }
@@ -1059,9 +1065,10 @@ public sealed class MainWindow : Window
             sp.Children.Add(WrapRow(
                 B("Save current Tune here", (_, _) => { CloseFlyout(); _presets.Save(n, EqUi()); RefreshPresets(n); ShowToast($"Saved “{n}”"); }),
                 B("Rename…", (_, _) => { CloseFlyout(); if (AskName("Rename Sound Profile", n) is { } nn) { var g = _presets.All()[n]; _presets.Save(nn, g); _presets.Delete(n); if (_cfg.LastPreset == n) { _cfg.LastPreset = nn; _cfg.Save(); } RefreshPresets(_selected == n ? nn : _selected); } }),
-                B("Delete", (_, _) => { CloseFlyout(); _presets.Delete(n); RefreshPresets(_selected == n ? null : _selected); })));
+                B("Delete", (_, _) => { CloseFlyout(); _presets.Delete(n); RefreshPresets(_selected == n ? null : _selected); }),
+                B("Save as new…", (_, _) => { CloseFlyout(); SavePreset(); })));
         }
-        Flyout(anchor, n, sp);
+        Flyout(anchor, n ?? "Sound Profiles", sp);
     }
     void CloseFlyout() { if (_openFlyout != null) _openFlyout.IsOpen = false; }
     string? AskName(string title, string initial)
@@ -1110,7 +1117,9 @@ public sealed class MainWindow : Window
             case Event.Game g: _suppress = true; _game.IsChecked = g.On; _suppress = false; RenderLowLat(g.On); UpdateTray(); break;
             case Event.Touch t:
                 for (int i = 0; i < 5; i++) { if (t.Map.Left[i] >= 0) _map.Left[i] = t.Map.Left[i]; if (t.Map.Right[i] >= 0) _map.Right[i] = t.Map.Right[i]; }
-                RenderTouch(); break;
+                var sup = t.Map.Supported();
+                if (!sup.SequenceEqual(_gestures)) { _gestures = sup; BuildTouchGrid(); } else RenderTouch();
+                break;
             case Event.Eq q:
                 if (q.Gains.Length == 10)
                 {

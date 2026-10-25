@@ -37,6 +37,8 @@ enum class Gesture(val slot: Int, val label: String) {
 data class TouchMap(val left: IntArray, val right: IntArray) {
     init { require(left.size == 5 && right.size == 5) }
     fun copyMap() = TouchMap(left.copyOf(), right.copyOf())
+    /** Gestures to show: those the earbuds reported (slot value >= 0). Before any report, all four. */
+    fun supported(): List<Gesture> = Gesture.entries.filter { left[it.slot] >= 0 || right[it.slot] >= 0 }.ifEmpty { Gesture.entries }
     override fun equals(other: Any?) = other is TouchMap && left.contentEquals(other.left) && right.contentEquals(other.right)
     override fun hashCode() = left.contentHashCode() * 31 + right.contentHashCode()
 

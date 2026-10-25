@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.9
+
+- Sound Profiles are a compact dropdown again: pick one and it applies at once, with Undo. Save, rename and delete sit behind the Edit button. Gestures is simpler: one dropdown per gesture and side, only for gestures your earbuds report, sent as soon as you change it. Android connects exactly like 1.4.4 again.
+
 ## 1.4.8
 
 - Fix: EQ changes could be silently blocked. A Lock EQ setting left on by 1.4.5-1.4.7 stopped every slider and Sound Profile change. 1.4.8 starts unlocked, and a locked tap now says how to unlock. EQ frames are byte-for-byte the same as 1.4.4.

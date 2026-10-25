@@ -19,6 +19,8 @@ object ProtoJ {
     const val EQ_SET = 0x41
     const val EQ_GET = 0x42
     const val VERSION = 0x66
+    /** Gets sent on connect/refresh, in the 1.4.4 order. */
+    val STATUS_QUERIES = listOf(BATTERY_LEFT, BATTERY_RIGHT, VERSION, GAME_GET, BUTTON_GET, EQ_GET)
 
     const val SERVICE = "0000faa0-0000-1000-8000-00805f9b34fb"
     const val WRITE = "0000faa1-0000-1000-8000-00805f9b34fb"

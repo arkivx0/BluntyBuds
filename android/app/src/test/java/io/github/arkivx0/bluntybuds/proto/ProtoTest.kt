@@ -221,4 +221,16 @@ class AdParserTest {
         }
     }
     private fun hex(b: ByteArray) = b.joinToString("") { "%02X".format(it) }
+
+    /** A1 connect requests, as sent by 1.4.4 (7c9fe04 refreshAll). */
+    @Test fun a1ConnectRequestsMatch144() {
+        assertEquals(listOf(0x0002, 0x0001, 0x0006, 0x0003, 0x000B, 0x0026), ProtoA.statusQueries(false, false))
+        assertEquals(listOf(0x14, 0x15, 0x66, 0x19, 0x39, 0x42), ProtoJ.STATUS_QUERIES)
+        assertFalse(Models.detect("A1").f.anc)
+    }
+    @Test fun gesturesShownAreTheReportedOnes() {
+        assertEquals(4, TouchMap.defaults().supported().size)
+        val m = TouchMap(intArrayOf(1, 3, -1, 6, -1), intArrayOf(1, -1, -1, 5, -1))
+        assertEquals(listOf(Gesture.SINGLE, Gesture.DOUBLE, Gesture.LONG), m.supported())
+    }
 }

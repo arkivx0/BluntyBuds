@@ -22,6 +22,10 @@ public sealed record TouchAction(string Name, int A, int J, string Label)
 }
 
 public enum Gesture { Single = 0, Double = 1, Triple = 2, Long = 3 }
+public static class GestureText
+{
+    public static string Label(this Gesture g) => g switch { Gesture.Single => "Single tap", Gesture.Double => "Double tap", Gesture.Triple => "Triple tap", _ => "Long press" };
+}
 
 /// <summary>Per-side map of protocol-A action bytes (5 slots; slot 4 unknown, preserved). -1 = not reported.</summary>
 public sealed class TouchMap
@@ -34,6 +38,13 @@ public sealed class TouchMap
         Left = left; Right = right;
     }
     public static TouchMap Defaults() => new(new[] { 1, 3, 4, 6, 0 }, new[] { 1, 2, 4, 5, 0 });
+    /// <summary>Gestures to show: those the earbuds reported (slot value >= 0). Before any report, all four.</summary>
+    public IReadOnlyList<Gesture> Supported()
+    {
+        var all = Enum.GetValues<Gesture>();
+        var got = all.Where(g => Left[(int)g] >= 0 || Right[(int)g] >= 0).ToArray();
+        return got.Length > 0 ? got : all;
+    }
     public TouchMap Copy() => new((int[])Left.Clone(), (int[])Right.Clone());
     public override bool Equals(object? o) => o is TouchMap m && Left.SequenceEqual(m.Left) && Right.SequenceEqual(m.Right);
     public override int GetHashCode() => HashCode.Combine(Left.Sum(), Right.Sum());

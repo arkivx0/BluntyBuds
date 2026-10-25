@@ -180,14 +180,11 @@ object Conn : BleClient.Listener {
     override fun onReady(protocol: Protocol) {
         connected = true; backoff.reset(); lowWarned = false
         main.removeCallbacks(retry)
-        // Read the battery right away on every connect, not only on the next notify,
-        // so the strip, the notification and the tray pick it up immediately.
-        when (protocol) {
-            Protocol.A -> {
-                send(ProtoA.get(ProtoA.GET_BATTERY))
-                if (listeners.isEmpty() && features().anc) send(ProtoA.get(ProtoA.GET_ANC_MODE))
-            }
-            Protocol.J -> { beginBatteryPoll(); send(ProtoJ.get(ProtoJ.BATTERY_LEFT)); send(ProtoJ.get(ProtoJ.BATTERY_RIGHT)) }
+        // Same as 1.4.4: the screen's refreshAll() reads everything (battery first) when it is open;
+        // with no screen open only the battery and noise mode are read, and only on protocol A.
+        if (listeners.isEmpty() && protocol == Protocol.A) {
+            send(ProtoA.get(ProtoA.GET_BATTERY))
+            if (features().anc) send(ProtoA.get(ProtoA.GET_ANC_MODE))
         }
         if (pendingCycle) { pendingCycle = false; ancMode?.let { setAnc(nextAnc()) } ?: setAnc(AncMode.ANC) }
         publish()

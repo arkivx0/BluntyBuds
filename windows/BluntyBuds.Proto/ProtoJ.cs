@@ -45,6 +45,8 @@ public static class ProtoJ
         }
         return o.ToArray();
     }
+    /// <summary>Gets sent on connect/refresh, in the 1.4.4 order.</summary>
+    public static IReadOnlyList<int> StatusQueries { get; } = new[] { BatteryLeft, BatteryRight, Version, GameGet, ButtonGet, EqGet };
     public static byte[] SetEq(float[] gains) => Frame(EqSet, EqPayload(gains));
 
     public static byte[] TouchPayload(TouchMap m)

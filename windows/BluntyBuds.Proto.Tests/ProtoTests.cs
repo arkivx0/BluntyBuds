@@ -195,4 +195,26 @@ public class ProtoTests
           Assert.Equal(new[] { "100B151E0F00ECFB783C881900050607080A0C0E10121401DE" }, EqWire.Frames(Protocol.A, g).Select(Convert.ToHexString));
           Assert.Equal(new[] { "AA4150140096000500010032008700060001006400780007000100C800640008000100900173000A0001002003F0000C0001004006B4000E000100800C0000100001000019910012000100003278001400010015" }, EqWire.Frames(Protocol.J, g).Select(Convert.ToHexString)); }
     }
+
+    /// <summary>A1 connect requests, as sent by 1.4.4 (7c9fe04 RefreshAll), for every A1 variant in the model table.</summary>
+    [Fact] public void A1ConnectRequestsMatch144()
+    {
+        var a144 = new[] { 0x0002, 0x0001, 0x0006, 0x0003, 0x000B, 0x0026 };
+        var j144 = new[] { 0x14, 0x15, 0x66, 0x19, 0x39, 0x42 };
+        foreach (var mark in new[] { "020E", "040E", "010E", "D90D", "BE0D", "050E", "0B0E", "61" })
+        {
+            var m = Models.Detect("A1", mark); var f = Models.For(m);
+            Assert.Equal("A1", m.Name); Assert.False(f.Anc);
+            if (m.Hint == Protocol.A) Assert.Equal(a144, ProtoA.StatusQueries(f.Anc, f.AncLevel));
+            else Assert.Equal(j144, ProtoJ.StatusQueries);
+        }
+        Assert.Equal("00020000", Convert.ToHexString(ProtoA.Get(0x0002)));
+    }
+    [Fact] public void GesturesShownAreTheReportedOnes()
+    {
+        Assert.Equal(4, TouchMap.Defaults().Supported().Count);
+        var m = new TouchMap(new[] { 1, 3, -1, 6, -1 }, new[] { 1, -1, -1, 5, -1 });
+        Assert.Equal(new[] { Gesture.Single, Gesture.Double, Gesture.Long }, m.Supported());
+        Assert.Equal(4, new TouchMap(new[] { -1, -1, -1, -1, -1 }, new[] { -1, -1, -1, -1, -1 }).Supported().Count);
+    }
 }
