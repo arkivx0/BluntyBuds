@@ -9,7 +9,7 @@ on the main screen, and Ping Buds. It talks to the earbuds directly over Bluetoo
 **No internet. No account. No tracking.** The Android app has no internet permission; the Windows app makes no network connections.
 Unofficial companion. See [Compatibility](#compatibility) for supported earbuds.
 
-![BluntyBuds on Windows: Home (demo mode, one earbud in use, made-up data)](docs/home.png)
+![BluntyBuds 1.4.10 on Windows at 600×660: Home (demo mode, one earbud in use, made-up data)](docs/home.png)
 
 ## Install on Windows
 Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
@@ -38,6 +38,9 @@ Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkiv
 - **Noise**: Quiet, Aware, Off and Custom, with a Depth slider (1–10) where the earbuds support it.
 - **Tune**: 10-band EQ (±12 dB), capped at about 160 px and never shorter than about 90 px, so the sliders stay usable when the window is short. Gain labels are whole numbers (the exact value is in the tooltip) and are sent as you change them.
   **Lock EQ** shows **Locked, tap to edit** and fades the sliders to 40%. The band labels stay at full contrast. The lock is remembered.
+
+  ![Lock EQ on the 600×660 window: Locked, tap to edit, sliders faded (demo mode)](docs/eq-locked.png)
+
 - **Sound Profiles**: a dropdown under Tune. Pick a profile and it applies at once, with a 3-second **Undo**.
   **Edit** next to it saves the current Tune as a new profile, or saves into, renames or deletes your own. Import and export as JSON (Sound).
 - **Tuned preset**: built-in correction curves from the AutoEq project. The curve for the connected earbuds is named **Tuned preset**,
@@ -48,7 +51,7 @@ Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkiv
 - **L-R Balance** and **Low-Latency** (lower audio delay) are on the main screen. **Ping Buds** plays a loud chirp to find them.
 - **About and Privacy**: "No internet. No account. No tracking.", the permissions actually granted, and "Unofficial companion".
   Battery pills and EQ sliders have accessibility names (percent, charging, and each band in Hz and dB).
-- Windows: the window is 600×660 and does not shrink below that. The EQ gives up height first, down to about 90 px. Status text wraps to two lines, and the full message stays in a tooltip.
+- Windows: the window opens at 600×660. It can narrow to 560 px; the height stays 660 so the EQ sliders keep about 90 px. Status text wraps to two lines, and the full message stays in a tooltip.
   Tray icon with battery tooltip and menu, low-battery toast, auto-reconnect, minimize/close to tray, optional Start with Windows,
   global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered Tune, dark title bar.
   If a scan finds nothing: "No earbuds found. Put them in pairing mode, then Scan."
@@ -69,13 +72,15 @@ Without it the release APK is built unsigned.
 ## Screenshots
 
 ### Windows
-Windows, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
+Windows 1.4.10 at 600×660, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
 
 ![Tune with the Sound Profiles dropdown open (demo mode)](docs/sound.png)
 
 ![Gestures: one dropdown per gesture and side (demo mode)](docs/gestures.png)
 
 ![About and Privacy (demo mode)](docs/about.png)
+
+![Lock EQ: Locked, tap to edit, sliders faded (demo mode)](docs/eq-locked.png)
 
 ### Android
 Android on a phone.
