@@ -3,8 +3,17 @@ namespace BluntyBuds.Proto;
 /// <summary>Protocol A (vendor GATT protocol). Frame: cmdHi cmdLo len payload sum(payload)&amp;0xFF. Empty request = cmd 00 00.</summary>
 public static class ProtoA
 {
-    /// <summary>Charging case (cmd_hi 0x01 / 0x21). Not every model answers; no reply leaves the case figure hidden.</summary>
+    /// <summary>Charging case (cmd_hi 0x01 / 0x21). Never sent: on some earbuds a case request stalls their command
+    /// handler, so every later set (noise, EQ, ...) is ignored. Only unsolicited case notifies are decoded.</summary>
     public const int GetCaseBattery = 0x0102, NotifyCaseBattery = 0x210E;
+    /// <summary>Gets sent on connect/refresh. Earbud commands only (cmd_hi 0x00), never charging-case ones.</summary>
+    public static IReadOnlyList<int> StatusQueries(bool anc, bool ancLevel)
+    {
+        var l = new List<int> { GetBattery, GetFwVersion, GetGame, GetButtons, GetEq, GetBalance };
+        if (anc) l.Add(GetAncMode);
+        if (ancLevel) l.Add(GetCustomAncLevel);
+        return l;
+    }
     public const int GetFwVersion = 0x0001, GetBattery = 0x0002, GetButtons = 0x0003, SetButtons = 0x1003,
         GetGame = 0x0006, SetGame = 0x1006, GetEq = 0x000B, SetEq = 0x100B, ResetEq = 0x100C,
         GetBalance = 0x0026, SetBalance = 0x1026, NotifyBattery = 0x200E, NotifyGame = 0x200F, NotifyEq = 0x2012, NotifyBalance = 0x201D,

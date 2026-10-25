@@ -180,11 +180,11 @@ object Conn : BleClient.Listener {
     override fun onReady(protocol: Protocol) {
         connected = true; backoff.reset(); lowWarned = false
         main.removeCallbacks(retry)
-        // Read the battery (and case) right away on every connect, not only on the next notify,
+        // Read the battery right away on every connect, not only on the next notify,
         // so the strip, the notification and the tray pick it up immediately.
         when (protocol) {
             Protocol.A -> {
-                send(ProtoA.get(ProtoA.GET_BATTERY)); send(ProtoA.get(ProtoA.GET_CASE_BATTERY))
+                send(ProtoA.get(ProtoA.GET_BATTERY))
                 if (listeners.isEmpty() && features().anc) send(ProtoA.get(ProtoA.GET_ANC_MODE))
             }
             Protocol.J -> { beginBatteryPoll(); send(ProtoJ.get(ProtoJ.BATTERY_LEFT)); send(ProtoJ.get(ProtoJ.BATTERY_RIGHT)) }

@@ -935,9 +935,7 @@ public sealed class MainWindow : Window
     async Task RefreshAll()
     {
         if (_ble.Protocol == Protocol.A)
-            foreach (var c in new[] { ProtoA.GetBattery, ProtoA.GetCaseBattery, ProtoA.GetFwVersion, ProtoA.GetGame, ProtoA.GetButtons, ProtoA.GetEq, ProtoA.GetBalance }
-                     .Concat(Models.For(_model).Anc ? new[] { ProtoA.GetAncMode } : Array.Empty<int>())
-                     .Concat(Models.For(_model).AncLevel ? new[] { ProtoA.GetCustomAncLevel } : Array.Empty<int>()))
+            foreach (var c in ProtoA.StatusQueries(Models.For(_model).Anc, Models.For(_model).AncLevel))
                 await _ble.SendAsync(ProtoA.Get(c));
         else if (_ble.Protocol == Protocol.J)
         {

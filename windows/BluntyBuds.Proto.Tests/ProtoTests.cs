@@ -157,4 +157,17 @@ public class ProtoTests
         Assert.Equal(new Event.AncLevel(1), ProtoA.Decode(H("000F0100 00")));
         Assert.True(Models.For(DeviceModel.NC9).AncLevel); Assert.False(Models.For(DeviceModel.A1).AncLevel);
     }
+
+    [Fact] public void A_StatusQueriesNeverTouchCase()
+    {
+        foreach (var (anc, lvl) in new[] { (false, false), (true, false), (true, true) })
+        {
+            var q = ProtoA.StatusQueries(anc, lvl);
+            Assert.All(q, c => Assert.Equal(0x00, c >> 8));
+            Assert.DoesNotContain(ProtoA.GetCaseBattery, q);
+            Assert.Contains(ProtoA.GetBattery, q);
+            Assert.Equal(anc, q.Contains(ProtoA.GetAncMode));
+            Assert.Equal(lvl, q.Contains(ProtoA.GetCustomAncLevel));
+        }
+    }
 }

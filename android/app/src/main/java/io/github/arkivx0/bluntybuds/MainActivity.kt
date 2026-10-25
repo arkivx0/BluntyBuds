@@ -790,10 +790,7 @@ class MainActivity : Activity(), BleClient.Listener {
     private fun send(f: ByteArray) = Conn.send(f)
     private fun refreshAll() {
         when (ble.protocol) {
-            Protocol.A -> listOf(ProtoA.GET_BATTERY, ProtoA.GET_CASE_BATTERY, ProtoA.GET_FW_VERSION, ProtoA.GET_GAME, ProtoA.GET_BUTTONS,
-                ProtoA.GET_EQ, ProtoA.GET_BALANCE)
-                .plus(if (Models.features(model).anc) listOf(ProtoA.GET_ANC_MODE) else emptyList())
-                .plus(if (Models.features(model).ancLevel) listOf(ProtoA.GET_CUSTOM_ANC_LEVEL) else emptyList())
+            Protocol.A -> ProtoA.statusQueries(Models.features(model).anc, Models.features(model).ancLevel)
                 .forEach { send(ProtoA.get(it)) }
             Protocol.J -> {
                 Conn.beginBatteryPoll()

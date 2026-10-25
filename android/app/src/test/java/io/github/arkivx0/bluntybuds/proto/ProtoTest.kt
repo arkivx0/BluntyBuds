@@ -186,4 +186,14 @@ class AdParserTest {
         assertEquals(Event.AncLevel(3), ProtoA.decode(h("000F010606")))
         assertTrue(Models.features(DeviceModel.NC9).ancLevel); assertFalse(Models.features(DeviceModel.A1).ancLevel)
     }
+
+    @Test fun statusQueriesNeverTouchCase() {
+        for ((anc, lvl) in listOf(false to false, true to false, true to true)) {
+            val q = ProtoA.statusQueries(anc, lvl)
+            assertTrue(q.all { it shr 8 == 0x00 })
+            assertFalse(ProtoA.GET_CASE_BATTERY in q)
+            assertTrue(ProtoA.GET_BATTERY in q)
+            assertEquals(anc, ProtoA.GET_ANC_MODE in q); assertEquals(lvl, ProtoA.GET_CUSTOM_ANC_LEVEL in q)
+        }
+    }
 }

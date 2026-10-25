@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.6
+
+- Fix: noise, Tune and other controls had no effect on some earbuds. 1.4.5 asked the charging case for its battery on connect, which can stall the earbuds' command handling. That request is gone; the case figure now shows only when the earbuds report it on their own.
+
 ## Unreleased
 
 ## 1.4.5

@@ -19,9 +19,14 @@ object ProtoA {
     const val RESET_EQ = 0x100C
     const val GET_BALANCE = 0x0026
     const val SET_BALANCE = 0x1026
-    /** Charging case (cmd_hi 0x01 / 0x21). Not every model answers; no reply just leaves the case figure hidden. */
+    /** Charging case (cmd_hi 0x01 / 0x21). Never sent: on some earbuds a case request stalls their
+     *  command handler, so every later set (noise, EQ, ...) is ignored. Only unsolicited case notifies are read. */
     const val GET_CASE_BATTERY = 0x0102
     const val NOTIFY_CASE_BATTERY = 0x210E
+    /** Gets sent on connect/refresh. Earbud commands only (cmd_hi 0x00), never charging-case ones. */
+    fun statusQueries(anc: Boolean, ancLevel: Boolean): List<Int> =
+        listOf(GET_BATTERY, GET_FW_VERSION, GET_GAME, GET_BUTTONS, GET_EQ, GET_BALANCE) +
+            (if (anc) listOf(GET_ANC_MODE) else emptyList()) + (if (ancLevel) listOf(GET_CUSTOM_ANC_LEVEL) else emptyList())
     const val NOTIFY_CONN = 0x200D
     const val NOTIFY_BATTERY = 0x200E
     const val NOTIFY_GAME = 0x200F
