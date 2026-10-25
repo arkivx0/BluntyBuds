@@ -9,7 +9,7 @@ It talks to the earbuds directly over Bluetooth LE.
 **No internet. No account. No tracking.** The Android app has no internet permission; the Windows app makes no network connections.
 Unofficial companion. See [Compatibility](#compatibility) for supported earbuds.
 
-![BluntyBuds on Windows (demo mode: one earbud in use, case at 64%, built-in NC9 AutoEQ profile)](docs/hero.png)
+![BluntyBuds 1.4.9 on Windows: Home (demo mode, one earbud in use, made-up data)](docs/home.png)
 
 ## Install on Windows
 Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
@@ -27,27 +27,26 @@ Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkiv
 (allow installs from your browser or file manager when asked). Android 10 or later. The app has no INTERNET permission.
 
 ## Features
-- **Home on one screen**, dark and compact: device name, connection dot, L / Case / R battery pills
-  (number plus bar) and an "Offline" badge on top; noise control and Tune in the middle; Gestures,
-  L-R Balance, Low-Latency and Ping Buds as icon buttons at the bottom that open compact flyouts (sheets on Android).
-  Controls the connected model doesn't support are hidden.
-- **Solo Mode**: when only one earbud is in use, BluntyBuds shows L/R chips and fades the missing
-  bud's pill to an outline instead of showing 0%. The notification, the Windows tray tooltip ("L 82%")
-  and low-battery alerts use only the earbud in use; a missing bud is never reported as low or disconnected.
-  The case level is shown as a small figure when the earbuds report it.
+- **Home on one screen**, dark and compact: device name, connection dot, L / Case / R battery pills (number plus bar)
+  and an "Offline" badge on top; noise control and Tune in the middle; Gestures, L-R Balance, Low-Latency and Ping Buds
+  as icon buttons at the bottom (compact flyouts on Windows, sheets on Android). Controls the connected model doesn't support are hidden.
+- **Solo Mode**: when only one earbud is in use, L/R chips show which one, and the missing bud's pill fades to an outline instead of 0%.
+- **Single-earbud battery**: the notification, the Windows tray tooltip (e.g. "L 82%") and low-battery alerts use only the
+  earbud in use; a missing bud is never reported as low or disconnected. The case level appears as a small figure when the earbuds report it.
 - **Noise**: Quiet, Aware, Off and Custom, with a Depth slider (1–10) on models that support it.
-- **Tune**: 10-band EQ (±12 dB). Changes are sent as you go; there is no Apply step.
-  **Lock EQ** (padlock next to Tune) dims the sliders and shows "EQ locked" if you touch them; it is remembered between launches.
-- **Sound Profiles**: chips under Tune apply on tap, with a 3-second Undo. Long-press (Windows: hold or right-click)
-  a chip to save the current Tune into it, rename it or delete it; "+ Save" adds a new one. Import / export as JSON.
-- **AutoEQ**: built-in correction profiles for models measured by the AutoEq project (the connected model's
-  profile is listed first, marked "may differ by hardware revision" unless the chip matches the measured unit),
-  and **Import Correction** for any AutoEQ `ParametricEQ.txt` or `GraphicEQ.txt`, fitted to the 10 bands offline.
-  Profiles never boost: the highest band is at most 0 dB.
-- **Gestures** (touch controls), **L-R Balance**, **Low-Latency** (game mode), **Ping Buds** (loud chirp to find them).
-- **About and Privacy** lists only the permissions actually granted.
-- Windows: tray icon with battery tooltip, tray menu, low-battery toast, auto-reconnect, minimize/close to tray,
-  optional Start with Windows, global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered Tune, dark title bar.
+- **Tune**: 10-band EQ (±12 dB), sent to the earbuds as you change it. The **Lock EQ** padlock next to Tune dims the sliders
+  and blocks changes until you tap it again; it is remembered between launches.
+- **Sound Profiles**: a dropdown under Tune. Pick a profile and it applies at once, with a 3-second **Undo**.
+  **Edit** next to it saves the current Tune as a new profile, or saves into, renames or deletes your own. Import and export as JSON (Sound).
+- **AutoEQ**: built-in correction profiles for models measured by the AutoEq project; the connected model's profile is listed first
+  (marked "may differ by hardware revision" unless the chip matches the measured unit). Profiles never boost: the highest band is at most 0 dB.
+- **Import Correction** (Sound): load any AutoEQ `ParametricEQ.txt` or `GraphicEQ.txt`, fitted to the 10 bands offline.
+- **Gestures**: a small grid with one dropdown per gesture and side (single, double, triple tap, long press), only for the gestures
+  your earbuds report. Changes are sent right away; Defaults restores the factory mapping.
+- **L-R Balance**, **Low-Latency** (lower audio delay) and **Ping Buds** (a loud chirp to find them).
+- **About and Privacy**: "No internet. No account. No tracking.", the permissions actually granted, and "Unofficial companion".
+- Windows: tray icon with battery tooltip and menu, low-battery toast, auto-reconnect, minimize/close to tray, optional Start with Windows,
+  global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered Tune, dark title bar.
 - Android: edge-to-edge, fixed dark theme (no dynamic color), auto-reconnect, Quick Settings "Noise" tile,
   optional status notification (one battery bar for the earbud in use, small case figure, noise buttons), low-battery notification.
 
@@ -62,16 +61,13 @@ Release signing is read from a properties file **outside** the repo:
 Without it the release APK is built unsigned.
 
 ## Screenshots
-![AutoEQ profiles in the preset list (demo mode, built-in NC9 profile)](docs/autoeq-presets.png)
+Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
 
-![Touch-control mapping (demo mode)](docs/touch-controls.png)
+![Tune with the Sound Profiles dropdown open (demo mode)](docs/sound.png)
 
-## Screenshots
-Rendered in demo mode (made-up data, no Bluetooth).
+![Gestures: one dropdown per gesture and side (demo mode)](docs/gestures.png)
 
-![Gestures flyout (demo mode)](docs/gestures.png)
-
-![Sound flyout: Import Correction and Sound Profile files (demo mode)](docs/sound.png)
+![About and Privacy (demo mode)](docs/about.png)
 
 ## Compatibility
 
