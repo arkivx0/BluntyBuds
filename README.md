@@ -3,13 +3,13 @@
 [![CI](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml/badge.svg)](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml)
 
 Free, open-source, offline earbuds companion for Windows and Android: battery with Solo Mode, noise control,
-a 10-band EQ ("Tune") with Sound Profiles and AutoEQ correction, gestures, L-R Balance, Low-Latency and Ping Buds.
-It talks to the earbuds directly over Bluetooth LE.
+a short 10-band EQ ("Tune") with Sound Profiles and a generic tuned preset, gestures, L-R Balance and Low-Latency
+on the main screen, and Ping Buds. It talks to the earbuds directly over Bluetooth LE.
 
 **No internet. No account. No tracking.** The Android app has no internet permission; the Windows app makes no network connections.
 Unofficial companion. See [Compatibility](#compatibility) for supported earbuds.
 
-![BluntyBuds 1.4.9 on Windows: Home (demo mode, one earbud in use, made-up data)](docs/home.png)
+![BluntyBuds 1.4.10 on Windows at 600×660: Home (demo mode, one earbud in use, made-up data)](docs/home.png)
 
 ## Install on Windows
 Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
@@ -27,27 +27,36 @@ Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkiv
 (allow installs from your browser or file manager when asked). Android 10 or later. The app has no INTERNET permission.
 
 ## Features
-- **Home on one screen**, dark and compact: device name, connection dot, L / Case / R battery pills (number plus bar)
-  and an "Offline" badge on top; noise control and Tune in the middle; Gestures, L-R Balance, Low-Latency and Ping Buds
-  as icon buttons at the bottom (compact flyouts on Windows, sheets on Android). Controls the connected model doesn't support are hidden.
-- **Solo Mode**: when only one earbud is in use, L/R chips show which one, and the missing bud's pill fades to an outline instead of 0%.
+- **Home on one screen**, dark and compact, no scrolling: device name, connection dot, L / Case / R battery pills (number plus bar)
+  and a privacy badge on top. The badge is a shield, not a connection mark. Tap it for "Bluetooth only, no network, no analytics."
+  Noise control and a short Tune sit in the middle. **L-R Balance** and **Low-Latency** are on the main screen.
+  Gestures and Ping Buds stay as icon buttons (compact flyouts on Windows, sheets on Android). Controls the connected earbuds don't support are hidden.
+- **Solo Mode**: when only one earbud is in use, the L/R chips (at least 40 px on Windows, 40 dp on Android) show which one,
+  and the other pill reads **In case** instead of 0%. With no link, the pills read **Not connected**.
 - **Single-earbud battery**: the notification, the Windows tray tooltip (e.g. "L 82%") and low-battery alerts use only the
-  earbud in use; a missing bud is never reported as low or disconnected. The case level appears as a small figure when the earbuds report it.
-- **Noise**: Quiet, Aware, Off and Custom, with a Depth slider (1–10) on models that support it.
-- **Tune**: 10-band EQ (±12 dB), sent to the earbuds as you change it. The **Lock EQ** padlock next to Tune dims the sliders
-  and blocks changes until you tap it again; it is remembered between launches.
+  earbud in use; a missing bud is never reported as low or disconnected. The case level appears as its own pill, with the charging mark beside the percent so "Case 100%" is not clipped.
+- **Noise**: Quiet, Aware, Off and Custom, with a Depth slider (1–10) where the earbuds support it.
+- **Tune**: 10-band EQ (±12 dB), capped at about 160 px and never shorter than about 90 px, so the sliders stay usable when the window is short. Gain labels are whole numbers (the exact value is in the tooltip) and are sent as you change them.
+  **Lock EQ** shows **Locked, tap to edit** and fades the sliders to 40%. The band labels stay at full contrast. The lock is remembered.
+
+  ![Lock EQ on the 600×660 window: Locked, tap to edit, sliders faded (demo mode)](docs/eq-locked.png)
+
 - **Sound Profiles**: a dropdown under Tune. Pick a profile and it applies at once, with a 3-second **Undo**.
   **Edit** next to it saves the current Tune as a new profile, or saves into, renames or deletes your own. Import and export as JSON (Sound).
-- **AutoEQ**: built-in correction profiles for models measured by the AutoEq project; the connected model's profile is listed first
-  (marked "may differ by hardware revision" unless the chip matches the measured unit). Profiles never boost: the highest band is at most 0 dB.
+- **Tuned preset**: built-in correction curves from the AutoEq project. The curve for the connected earbuds is named **Tuned preset**,
+  or **Tuned preset (approximate)** when the hardware revision is not an exact match. Other built-in curves use generic numbered names. Names never include an earbud model. Curves never boost: the highest band is at most 0 dB.
 - **Import Correction** (Sound): load any AutoEQ `ParametricEQ.txt` or `GraphicEQ.txt`, fitted to the 10 bands offline.
 - **Gestures**: a small grid with one dropdown per gesture and side (single, double, triple tap, long press), only for the gestures
   your earbuds report. Changes are sent right away; Defaults restores the factory mapping.
-- **L-R Balance**, **Low-Latency** (lower audio delay) and **Ping Buds** (a loud chirp to find them).
+- **L-R Balance** and **Low-Latency** (lower audio delay) are on the main screen. **Ping Buds** plays a loud chirp to find them.
 - **About and Privacy**: "No internet. No account. No tracking.", the permissions actually granted, and "Unofficial companion".
-- Windows: tray icon with battery tooltip and menu, low-battery toast, auto-reconnect, minimize/close to tray, optional Start with Windows,
+  Battery pills and EQ sliders have accessibility names (percent, charging, and each band in Hz and dB).
+- Windows: the window opens at 600×660. It can narrow to 560 px; the height stays 660 so the EQ sliders keep about 90 px. Status text wraps to two lines, and the full message stays in a tooltip.
+  Tray icon with battery tooltip and menu, low-battery toast, auto-reconnect, minimize/close to tray, optional Start with Windows,
   global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered Tune, dark title bar.
-- Android: edge-to-edge, fixed dark theme (no dynamic color), auto-reconnect, Quick Settings "Noise" tile,
+  If a scan finds nothing: "No earbuds found. Put them in pairing mode, then Scan."
+- Android: the close button minimizes. Back still quits. The EQ stays at least about 90 dp on a normal screen, and only gets shorter when that is what keeps the other rows on screen. Labels use sp and shrink to fit instead of clipping when the system font is large.
+  Edge-to-edge, fixed dark theme (no dynamic color), auto-reconnect, Quick Settings "Noise" tile,
   optional status notification (one battery bar for the earbud in use, small case figure, noise buttons), low-battery notification.
 
 ## Build
@@ -61,8 +70,9 @@ Release signing is read from a properties file **outside** the repo:
 Without it the release APK is built unsigned.
 
 ## Screenshots
+
 ### Windows
-Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
+Windows 1.4.10 at 600×660, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
 
 ![Tune with the Sound Profiles dropdown open (demo mode)](docs/sound.png)
 
@@ -70,8 +80,10 @@ Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder ad
 
 ![About and Privacy (demo mode)](docs/about.png)
 
+![Lock EQ: Locked, tap to edit, sliders faded (demo mode)](docs/eq-locked.png)
+
 ### Android
-Android 1.4.9 on a phone (real device, TOZO NC9).
+Android on a phone.
 
 <p>
   <img src="docs/android/home.png" width="220" alt="Android Home with the Rock profile">

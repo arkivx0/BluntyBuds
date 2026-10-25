@@ -135,8 +135,16 @@ object AutoEq {
         return p to (chipKnown && p.chip != null && p.chip.equals(m.chip, true))
     }
 
-    /** Preset-list label for the suggested profile. */
-    fun suggestLabel(p: Profile, confident: Boolean) = "AutoEQ · ${p.model}" + if (confident) " (this model)" else " (may differ by hardware revision)"
+    /** Preset-list label for the suggested profile. Generic: never the earbud vendor or model. */
+    fun suggestLabel(p: Profile, confident: Boolean): String {
+        val label = if (confident) "Tuned preset" else "Tuned preset (approximate)"
+        if (p.model.isNotEmpty() && label.contains(p.model, ignoreCase = true))
+            throw IllegalStateException("Preset label must not name the earbud model.")
+        return label
+    }
+
+    /** Label for another built-in correction (index starts at 2). Generic: no vendor or model. */
+    fun extraPresetLabel(index: Int) = "Tuned preset $index"
 
     const val ATTRIBUTION = "AutoEQ profiles: AutoEq by Jaakko Pasanen, github.com/jaakkopasanen/AutoEq (MIT License, Copyright (c) 2018-2022 Jaakko Pasanen). Measurements by their respective sources (e.g. Rtings)."
 }

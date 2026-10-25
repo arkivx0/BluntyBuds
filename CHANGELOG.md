@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.10
+
+- Home stays one dark screen with no scrolling. The EQ is shorter, and L-R Balance and Low-Latency sit on the main screen. Gestures and Ping Buds stay as buttons.
+- Sound Profiles (the dropdown and Edit) stay visible. The EQ shrinks so every row fits, with no overlap, at the default window size and at the minimum height.
+- The top badge is a privacy control (a shield: Bluetooth only, no network, no analytics), not a connection status. The "Solo" word is gone; the L/R chips already show which earbud is in use, and those chips are at least 40 px / 40 dp.
+- A missing earbud reads "In case". With no link, the pills read "Not connected". The case percent is no longer clipped while charging.
+- Device names keep more of the top strip. Status text wraps, and the full message stays in a tooltip. An empty scan says to put the earbuds in pairing mode, then Scan.
+- Lock EQ shows "Locked, tap to edit" and fades the sliders to 40%. The band labels stay readable. Gain labels are whole numbers, with the exact value in the tooltip.
+- Built-in correction presets use generic names ("Tuned preset", "Tuned preset (approximate)", then numbered). They do not include an earbud model.
+- Battery pills and EQ sliders have accessibility names.
+- Android: the close button minimizes instead of quitting. Labels follow large system font sizes and shrink to fit instead of clipping.
+- Windows: the window opens at 600×660. It can narrow to 560 px; the height stays 660. The EQ gives up height first, and the slider row stays at least about 90 px so the sliders do not disappear. Android keeps the same 90 dp floor when the screen is tall enough.
+
 ## 1.4.9
 
 - Sound Profiles are a compact dropdown again: pick one and it applies at once, with Undo. Save, rename and delete sit behind the Edit button. Gestures is simpler: one dropdown per gesture and side, only for gestures your earbuds report, sent as soon as you change it. Android connects exactly like 1.4.4 again.
@@ -15,8 +28,6 @@
 ## 1.4.6
 
 - Fix: noise, Tune and other controls had no effect on some earbuds. 1.4.5 asked the charging case for its battery on connect, which can stall the earbuds' command handling. That request is gone; the case figure now shows only when the earbuds report it on their own.
-
-## Unreleased
 
 ## 1.4.5
 - Home on one screen, no scrolling (both apps): top strip with the device name, a connection dot, L / Case / R battery pills (number plus bar) and an "Offline" badge; noise control; Tune with Sound Profile chips; a bottom row of icon buttons (Gestures, L-R Balance, Low-Latency, Ping Buds) that open compact flyouts (Windows) or sheets (Android). Unsupported controls are hidden. Colors: background #0E0F12, surfaces #17191E, one accent; 8 px grid, 32 px rows, 13–14 sp text.

@@ -72,8 +72,13 @@ public class AutoEqTests
         Assert.Null(AutoEq.Suggest(DeviceModel.Unknown, ps).Profile);
         // Built-in table: no measured chip is known yet, so nothing is auto-selected
         Assert.False(AutoEq.Suggest(bes).Confident);
-        Assert.Equal("AutoEQ · NC9 (may differ by hardware revision)", AutoEq.SuggestLabel(ps[0], false));
-        Assert.Equal("AutoEQ · NC9 (this model)", AutoEq.SuggestLabel(ps[0], true));
+        Assert.Equal("Tuned preset (approximate)", AutoEq.SuggestLabel(ps[0], false));
+        Assert.Equal("Tuned preset", AutoEq.SuggestLabel(ps[0], true));
+        Assert.DoesNotContain(ps[0].Model, AutoEq.SuggestLabel(ps[0], false), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(ps[0].Model, AutoEq.SuggestLabel(ps[0], true), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TOZO", AutoEq.SuggestLabel(ps[0], false), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Tuned preset 2", AutoEq.ExtraPresetLabel(2));
+        Assert.DoesNotContain(ps[0].Model, AutoEq.ExtraPresetLabel(2), StringComparison.OrdinalIgnoreCase);
     }
     [Fact] public void BuiltInProfiles()
     {

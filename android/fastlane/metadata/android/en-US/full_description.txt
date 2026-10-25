@@ -9,16 +9,16 @@ BluntyBuds is a free, open-source, offline earbuds companion. It talks to the ea
 
 <b>Features</b>
 <ul>
-<li>Home on one screen: device, connection dot, L / Case / R battery pills (number plus bar), Offline badge</li>
-<li>Solo Mode: with one earbud in use, the missing bud's pill fades to an outline instead of 0%</li>
-<li>Single-earbud battery: the notification and low-battery alerts use only the earbud in use</li>
+<li>Home on one screen: device, connection dot, L / Case / R battery pills, and a privacy badge (Bluetooth only, no network, no analytics)</li>
+<li>Solo Mode: with one earbud in use, the other pill reads "In case" instead of 0%. With no link, the pills read "Not connected"</li>
+<li>Single-earbud battery: the notification and low-battery alerts use only the earbud in use. The case percent is not clipped while charging</li>
 <li>Noise: Quiet, Aware, Off, Custom with a Depth slider (where supported)</li>
-<li>Tune: 10-band EQ (±12 dB), sent as you change it, with a Lock EQ padlock</li>
+<li>Tune: a short 10-band EQ (±12 dB), sent as you change it. Lock EQ shows "Locked, tap to edit" and fades the sliders</li>
 <li>Sound Profiles: a dropdown that applies on selection with a 3-second Undo; Edit to save, rename or delete; import/export</li>
-<li>AutoEQ: built-in correction profiles from AutoEq measurements; profiles never boost</li>
+<li>Tuned preset: a built-in correction from AutoEq measurements, with a generic name. Curves never boost</li>
 <li>Import Correction: any ParametricEQ.txt or GraphicEQ.txt, fitted to the 10 bands offline</li>
-<li>Gestures: one dropdown per gesture and side, only for gestures your earbuds report</li>
-<li>L-R Balance, Low-Latency, Ping Buds</li>
+<li>L-R Balance and Low-Latency on the main screen. Gestures and Ping Buds open as sheets</li>
+<li>Close minimizes the app. Labels follow large system font sizes</li>
 <li>About and Privacy, Quick Settings noise tile, optional status notification, auto-reconnect</li>
 </ul>
 

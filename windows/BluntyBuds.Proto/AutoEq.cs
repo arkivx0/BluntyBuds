@@ -173,8 +173,21 @@ public static class AutoEq
         return (p, chipKnown && p.Chip is not null && p.Chip.Equals(m.Chip, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>Preset-list label for the suggested profile.</summary>
-    public static string SuggestLabel(Profile p, bool confident) => "AutoEQ · " + p.Model + (confident ? " (this model)" : " (may differ by hardware revision)");
+    /// <summary>Preset-list label for the suggested profile. Generic: never the earbud vendor or model.</summary>
+    public static string SuggestLabel(Profile p, bool confident)
+    {
+        var label = confident ? "Tuned preset" : "Tuned preset (approximate)";
+        if (p.Model.Length > 0 && label.Contains(p.Model, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Preset label must not name the earbud model.");
+        return label;
+    }
+
+    /// <summary>Label for another built-in correction (index starts at 2). Generic: no vendor or model.</summary>
+    public static string ExtraPresetLabel(int index)
+    {
+        var label = "Tuned preset " + index.ToString(Inv);
+        return label;
+    }
 
     public const string Attribution = "AutoEQ profiles: AutoEq by Jaakko Pasanen, github.com/jaakkopasanen/AutoEq (MIT License, Copyright (c) 2018-2022 Jaakko Pasanen). Measurements by their respective sources (e.g. Rtings).";
 }

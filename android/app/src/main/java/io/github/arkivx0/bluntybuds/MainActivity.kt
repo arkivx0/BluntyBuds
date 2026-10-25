@@ -12,6 +12,8 @@ import android.bluetooth.le.ScanSettings
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.util.TypedValue
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -31,9 +33,9 @@ import io.github.arkivx0.bluntybuds.IconDrawable.Kind
 import io.github.arkivx0.bluntybuds.proto.*
 
 /**
- * Home: one screen, no scrolling. Top strip (device, connection dot, L / Case / R battery pills, Offline badge),
- * noise control, Tune (10-band EQ with Lock EQ) and Sound Profile chips, then a row of icon buttons that open
- * compact sheets (Gestures, L-R Balance, Low-Latency, Ping Buds).
+ * Home: one screen, no scrolling. Top strip (device, connection dot, L / Case / R battery pills, privacy badge),
+ * noise control, a short Tune (10-band EQ with Lock EQ) and Sound Profiles, then L-R Balance and Low-Latency.
+ * Gestures and Ping Buds stay as icon buttons that open compact sheets.
  */
 @SuppressLint("MissingPermission", "SetTextI18n")
 private const val CUSTOM_ITEM = "Custom (unsaved)"
@@ -57,12 +59,11 @@ class MainActivity : Activity(), BleClient.Listener {
     private lateinit var status: TextView
     private lateinit var deviceSpinner: Spinner
     private lateinit var showAll: CheckBox
-    private lateinit var controls: LinearLayout
+    private lateinit var controls: FitColumn
     private lateinit var deviceName: TextView
     private lateinit var connDot: View
     private lateinit var chipL: TextView
     private lateinit var chipR: TextView
-    private lateinit var soloLabel: TextView
     private lateinit var pillL: Pill
     private lateinit var pillR: Pill
     private lateinit var pillCase: Pill
@@ -88,14 +89,14 @@ class MainActivity : Activity(), BleClient.Listener {
     private lateinit var ancLevelBar: SeekBar
     private lateinit var ancLevelLabel: TextView
     private lateinit var btnGestures: View
-    private lateinit var btnBalance: View
-    private lateinit var btnLowLat: View
     private lateinit var btnPing: View
+    private lateinit var balanceRow: LinearLayout
+    private lateinit var lowLatRow: LinearLayout
+    private lateinit var listenCard: LinearLayout
+    private lateinit var lockHint: TextView
     private lateinit var lowLatIcon: IconDrawable
     private lateinit var deviceSheet: LinearLayout
     private lateinit var gestureSheet: LinearLayout
-    private lateinit var balanceSheet: LinearLayout
-    private lateinit var lowLatSheet: LinearLayout
     private lateinit var pingSheet: LinearLayout
     private lateinit var soundSheet: LinearLayout
     private lateinit var snack: LinearLayout
@@ -152,7 +153,7 @@ class MainActivity : Activity(), BleClient.Listener {
     }
 
     // Connection lives in Conn (shared with the Quick Settings tile / notification), so it is not closed here.
-    /** Close button and back: stop scanning and the chirp, drop the earbud link (no reconnect loop left behind), close the task. */
+    /** Back still quits: stop scanning and the chirp, drop the earbud link, close the task. The close button only minimizes. */
     private fun quit() {
         main.removeCallbacks(renderTick)
         stopScan()
@@ -160,9 +161,14 @@ class MainActivity : Activity(), BleClient.Listener {
         Conn.quit()
         finishAndRemoveTask()
     }
-    @Deprecated("Back is the same as Close")
+    @Deprecated("Back quits; the close button minimizes")
     @Suppress("DEPRECATION")
     override fun onBackPressed() { quit() }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (::controls.isInitialized) controls.requestLayout()
+    }
 
     override fun onDestroy() { Conn.listeners.remove(this); main.removeCallbacks(renderTick); main.removeCallbacks(hideSnack); stopScan(); tone.stop(); super.onDestroy() }
 
@@ -196,6 +202,10 @@ class MainActivity : Activity(), BleClient.Listener {
 
     // ---------- UI helpers (dark, compact) ----------
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    /** Sizes are in sp, so they grow with the system font and step down only when the line would clip. */
+    private fun TextView.scaleToFit(minSp: Int, maxSp: Int) {
+        setAutoSizeTextTypeUniformWithConfiguration(minSp, maxSp, 1, TypedValue.COMPLEX_UNIT_SP)
+    }
     private fun round(color: Int, r: Int = 8, stroke: Int? = null) = GradientDrawable().apply {
         setColor(color); cornerRadius = dp(r).toFloat(); stroke?.let { setStroke(dp(1), it) }
     }
@@ -242,7 +252,10 @@ class MainActivity : Activity(), BleClient.Listener {
         override fun getView(p: Int, c: View?, parent: ViewGroup) = style(super.getView(p, c, parent), true)
         override fun getDropDownView(p: Int, c: View?, parent: ViewGroup) = style(super.getDropDownView(p, c, parent), false)
         private fun style(v: View, compact: Boolean) = v.apply {
-            (this as? TextView)?.apply { setTextColor(FG); textSize = 13f; if (compact) { setPadding(0, dp(4), 0, dp(4)); maxLines = 1 } }
+            (this as? TextView)?.apply {
+                setTextColor(FG); textSize = 13f
+                if (compact) { setPadding(0, dp(4), 0, dp(4)); maxLines = 1; ellipsize = TextUtils.TruncateAt.END; scaleToFit(11, 13) }
+            }
         }
     }
     private fun switch(t: String, on: (Boolean) -> Unit) = Switch(this).apply {
@@ -258,29 +271,47 @@ class MainActivity : Activity(), BleClient.Listener {
         layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, dp(ROW)).apply { marginEnd = dp(8) }
     }
 
-    /** Battery pill: number plus a bar. A missing earbud is faded to an outline (never shown as 0%). */
+    /** Battery pill: number plus a bar. A missing earbud reads "In case"; with no link, "Not connected". Never shown as 0%. */
     private inner class Pill(val side: String, small: Boolean) : LinearLayout(this@MainActivity) {
-        val label = text("$side —", if (small) 12f else 14f, FG, !small).apply { gravity = Gravity.CENTER; maxLines = 1 }
+        val label = text("$side —", if (small) 12f else 14f, FG, !small).apply {
+            gravity = Gravity.CENTER; maxLines = 2; ellipsize = TextUtils.TruncateAt.END
+            scaleToFit(if (small) 10 else 11, if (small) 12 else 14)
+        }
+        val bolt = ImageView(this@MainActivity).apply {
+            setImageDrawable(icon(Kind.BOLT, ACCENT, 12)); visibility = View.GONE
+            layoutParams = LayoutParams(dp(12), dp(12)).apply { marginStart = dp(4) }
+        }
         val bar = ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100; progressTintList = ColorStateList.valueOf(ACCENT); progressBackgroundTintList = ColorStateList.valueOf(LINE)
             layoutParams = LayoutParams(MATCH_PARENT, dp(4)).apply { topMargin = dp(4) }
         }
         init {
             orientation = VERTICAL; gravity = Gravity.CENTER; setPadding(dp(8), dp(4), dp(8), dp(6))
-            addView(label); addView(bar)
+            addView(row(label, bolt).apply { gravity = Gravity.CENTER }); addView(bar)
         }
-        fun set(pct: Int?, charging: Boolean, missing: Boolean) {
-            if (pct == null) {
-                label.text = if (missing) side else "$side —"
-                bar.visibility = View.INVISIBLE
-                background = outline(if (missing) CTL else LINE, 10)
-                alpha = if (missing) 0.55f else 0.8f
-                contentDescription = if (missing) "$side earbud not in use" else "$side battery unknown"
-            } else {
-                label.text = "$side $pct%" + if (charging) " ⚡\uFE0E" else ""
+        private fun spoken() = when (side) { "L" -> "Left earbud"; "R" -> "Right earbud"; "Case" -> "Case"; else -> side }
+        fun set(pct: Int?, charging: Boolean, missing: Boolean, connected: Boolean) {
+            bolt.visibility = if (pct != null && charging) View.VISIBLE else View.GONE
+            if (pct != null) {
+                label.text = "$side $pct%"
                 bar.visibility = View.VISIBLE; bar.progress = pct
                 background = round(CTL, 10); alpha = 1f
-                contentDescription = "$side $pct percent" + if (charging) ", charging" else ""
+                contentDescription = "${spoken()} $pct percent" + if (charging) ", charging" else ""
+            } else if (missing) {
+                label.text = "In case"
+                bar.visibility = View.INVISIBLE
+                background = outline(CTL, 10); alpha = 0.55f
+                contentDescription = "${spoken()}, in case"
+            } else if (!connected && side != "Case") {
+                label.text = "Not connected"
+                bar.visibility = View.INVISIBLE
+                background = outline(LINE, 10); alpha = 0.8f
+                contentDescription = "${spoken()}, not connected"
+            } else {
+                label.text = "$side —"
+                bar.visibility = View.INVISIBLE
+                background = outline(LINE, 10); alpha = 0.8f
+                contentDescription = "${spoken()}, battery unknown"
             }
         }
     }
@@ -290,40 +321,47 @@ class MainActivity : Activity(), BleClient.Listener {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(8)) }
         frame.addView(root, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
 
-        // ---- top strip: device name · connection dot · L/R chips · Offline badge, then L / Case / R pills ----
+        // ---- top strip: device name · connection dot · L/R chips · privacy badge, then L / Case / R pills ----
         connDot = View(this).apply { background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(DIM) }; layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)) }
         deviceName = text("Not connected", 14f, FG, true).apply {
-            maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(dp(8), 0, dp(8), 0); minHeight = dp(ROW); gravity = Gravity.CENTER_VERTICAL
+            maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(dp(8), 0, dp(8), 0); minHeight = dp(40); gravity = Gravity.CENTER_VERTICAL
             isClickable = true; setOnClickListener { openSheet("Earbuds", deviceSheet) }; contentDescription = "Earbuds and connection"
         }
-        fun budChip(t: String) = text(t, 12f, DIM, true).apply { gravity = Gravity.CENTER; layoutParams = LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginStart = dp(4) } }
+        fun budChip(t: String) = text(t, 12f, DIM, true).apply { gravity = Gravity.CENTER; layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(4) } }
         chipL = budChip("L"); chipR = budChip("R")
-        soloLabel = text("Solo", 12f, ACCENT, true).apply { visibility = View.GONE; setPadding(dp(4), 0, 0, 0) }
-        val offline = text("Offline", 12f, ACCENT, true).apply {
-            setCompoundDrawablesRelative(icon(Kind.SHIELD, ACCENT, 14).also { it.setBounds(0, 0, dp(14), dp(14)) }, null, null, null)
-            compoundDrawablePadding = dp(4); gravity = Gravity.CENTER_VERTICAL
-            background = outline(0xFF1F6B5B.toInt(), 12); setPadding(dp(8), dp(2), dp(8), dp(2))
-            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, dp(24)).apply { marginStart = dp(8) }
-            contentDescription = "Offline: no internet permission"; setOnClickListener { showAbout() }
+        val privacyTip = "No internet. Bluetooth only, no network, no analytics."
+        val privacy = ImageView(this).apply {
+            setImageDrawable(icon(Kind.SHIELD, ACCENT, 18)); contentDescription = privacyTip; tooltipText = privacyTip
+            scaleType = ImageView.ScaleType.CENTER; background = outline(0xFF1F6B5B.toInt(), 12)
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(8) }
+            setOnClickListener {
+                AlertDialog.Builder(this@MainActivity).setTitle("No internet")
+                    .setMessage("Bluetooth only, no network, no analytics.").setPositiveButton("OK", null).show()
+            }
         }
         pillL = Pill("L", false); pillR = Pill("R", false); pillCase = Pill("Case", true)
-        val pills = row(weight(pillL), space(8), pillCase.apply { layoutParams = LinearLayout.LayoutParams(dp(88), WRAP_CONTENT) }, space(8), weight(pillR)).apply { setPadding(0, dp(4), 0, 0) }
+        val pills = row(weight(pillL), space(8), pillCase.apply { layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { minimumWidth = dp(96) } }, space(8), weight(pillR)).apply { setPadding(0, dp(4), 0, 0) }
+        fun topIcon(kind: Kind, desc: String, on: () -> Unit) = iconBtn(kind, desc, on).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(4) }
+        }
         root.addView(card(
-            row(connDot, weight(deviceName), soloLabel, chipL, chipR, offline,
-                iconBtn(Kind.INFO, "About and Privacy") { showAbout() }.apply { (layoutParams as LinearLayout.LayoutParams).marginStart = dp(4) },
-                iconBtn(Kind.CLOSE, "Close BluntyBuds") { quit() }),
+            row(connDot, weight(deviceName), chipL, chipR, privacy,
+                topIcon(Kind.INFO, "About and Privacy") { showAbout() },
+                topIcon(Kind.CLOSE, "Minimize") { moveTaskToBack(true) }),
             pills))
-        status = text("Idle", 12f, DIM).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(dp(4), 0, dp(4), dp(8)) }
+        status = text("No earbuds found. Put them in pairing mode, then Scan.", 12f, DIM).apply {
+            maxLines = 2; ellipsize = TextUtils.TruncateAt.END; setPadding(dp(4), 0, dp(4), dp(8)); tooltipText = text
+        }
         root.addView(status)
 
-        controls = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; alpha = 0.45f }
+        controls = FitColumn(this).apply { orientation = LinearLayout.VERTICAL; alpha = 0.45f }
         root.addView(controls, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
 
         // ---- noise: segmented control, Depth only where the device supports it ----
         val seg = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; background = round(CTL, 8); setPadding(dp(2), dp(2), dp(2), dp(2)) }
         for ((m, t) in listOf(AncMode.ANC to "Quiet", AncMode.TRANSPARENCY to "Aware", AncMode.OFF to "Off", AncMode.CUSTOM to "Custom")) {
             val b = text(t, 13f).apply {
-                gravity = Gravity.CENTER; maxLines = 1
+                gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END; scaleToFit(11, 13)
                 layoutParams = LinearLayout.LayoutParams(0, dp(ROW - 4), 1f)
                 setOnClickListener { if (!suppress) Conn.setAnc(m) }
             }
@@ -332,8 +370,11 @@ class MainActivity : Activity(), BleClient.Listener {
         ancLevelLabel = text("Depth 5", 13f, DIM).apply { width = dp(72) }
         ancLevelBar = tintSeek(SeekBar(this)).apply {
             max = ProtoA.ANC_LEVEL_MAX - ProtoA.ANC_LEVEL_MIN; progress = 4
+            contentDescription = "Noise-cancelling depth 5"
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, u: Boolean) { ancLevelLabel.text = "Depth ${p + 1}" }
+                override fun onProgressChanged(s: SeekBar?, p: Int, u: Boolean) {
+                    ancLevelLabel.text = "Depth ${p + 1}"; contentDescription = "Noise-cancelling depth ${p + 1}"
+                }
                 override fun onStartTrackingTouch(s: SeekBar?) {}
                 override fun onStopTrackingTouch(s: SeekBar?) { if (!suppress) Conn.setAncLevel(progress + 1) }
             })
@@ -345,14 +386,15 @@ class MainActivity : Activity(), BleClient.Listener {
 
         // ---- Tune: EQ with Lock EQ, Sound Profile chips below ----
         lockBtn = iconBtn(Kind.UNLOCK, "Lock EQ") { eqLocked = !eqLocked; toast(if (eqLocked) "EQ locked" else "EQ unlocked") }
+        lockHint = text("Locked, tap to edit", 12f, ACCENT, true).apply { visibility = View.GONE; maxLines = 2; ellipsize = TextUtils.TruncateAt.END }
         // Spacer must be 1px tall: a bare View with WRAP_CONTENT fills all the height it is offered, which made this
         // header swallow the whole Tune card and squeezed the band sliders and Sound Profile chips to nothing.
-        val tuneHeader = row(title("Tune"), space(4), lockBtn, View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) },
+        val tuneHeader = row(title("Tune"), space(4), lockBtn, space(8), lockHint, View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) },
             btn("Sound") { openSheet("Sound", soundSheet) }.apply { (layoutParams as LinearLayout.LayoutParams).marginEnd = 0 })
-        eqRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, dp(4)); minimumHeight = dp(140) }
+        eqRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, dp(4)) }
         for (i in 0 until 10) {
             val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 1f) }
-            val lbl = text("0", 12f, FG).apply { gravity = Gravity.CENTER }
+            val lbl = text("0", 12f, FG).apply { gravity = Gravity.CENTER; fontFeatureSettings = "tnum"; maxLines = 1 }
             val bar = VerticalSeekBar(this).apply {
                 tintSeek(this)
                 max = 48; progress = 24; setPadding(dp(8), 0, dp(8), 0)
@@ -367,7 +409,9 @@ class MainActivity : Activity(), BleClient.Listener {
                 onRelease = { onSliderReleased() }
             }
             val f = EqGrid.FREQS[i]
-            val fl = text(if (f >= 1000) "${f / 1000.0}".removeSuffix(".0") + "k" else "$f", 12f, DIM).apply { gravity = Gravity.CENTER }
+            val fl = text(if (f >= 1000) "${f / 1000.0}".removeSuffix(".0") + "k" else "$f", 12f, DIM).apply {
+                gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END; scaleToFit(9, 12)
+            }
             eqLabels += lbl; eqBars += bar
             c.addView(lbl); c.addView(bar); c.addView(fl)
             eqRow.addView(c)
@@ -388,30 +432,57 @@ class MainActivity : Activity(), BleClient.Listener {
         val profRow = row(weight(profileSpinner), space(8), profMore).apply { setPadding(0, dp(4), 0, 0) }
         // The Undo snackbar floats over the lower part of the sliders, never over the dropdown or the bottom row.
         eqFrame = FrameLayout(this).apply { addView(eqRow, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)) }
-        val tune = card(tuneHeader, eqFrame.apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f) }, profRow)
-        tune.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f).apply { bottomMargin = dp(8) }
+        // Height is assigned in FitColumn so the dropdown, Balance, Low-Latency and the tool row stay on screen.
+        val tune = card(tuneHeader, eqFrame.apply { layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0) }, profRow)
+        controls.eq = eqFrame
+        tune.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(8) }
         controls.addView(tune)
         refreshPresets()
         renderLock()
 
         // ---- bottom row: icon buttons that open compact sheets ----
-        fun tool(kind: Kind, label: String, on: () -> Unit): Pair<LinearLayout, IconDrawable> {
+        fun tool(kind: Kind, label: String, on: () -> Unit): LinearLayout {
             val d = icon(kind, FG, 20)
-            val v = col(ImageView(this).apply { setImageDrawable(d); layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(24)) },
-                text(label, 12f, DIM).apply { gravity = Gravity.CENTER; maxLines = 1 }).apply {
+            return col(ImageView(this).apply { setImageDrawable(d); layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(24)) },
+                text(label, 12f, DIM).apply {
+                    gravity = Gravity.CENTER; maxLines = 2; ellipsize = TextUtils.TruncateAt.END; scaleToFit(10, 12)
+                    layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+                }).apply {
                 gravity = Gravity.CENTER; background = round(CARD, 12); setPadding(0, dp(8), 0, dp(8)); isClickable = true; isFocusable = true
                 contentDescription = label; setOnClickListener { try { on() } catch (e: Exception) { onStatus("Error: ${e.message}") } }
                 layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginEnd = dp(8) }
             }
-            return v to d
         }
-        btnGestures = tool(Kind.GESTURE, "Gestures") { openSheet("Gestures", gestureSheet) }.first
-        btnBalance = tool(Kind.BALANCE, "L-R Balance") { openSheet("L-R Balance", balanceSheet) }.first
-        val ll = tool(Kind.BOLT, "Low-Latency") { openSheet("Low-Latency", lowLatSheet) }
-        btnLowLat = ll.first; lowLatIcon = ll.second
-        btnPing = tool(Kind.PING, "Ping Buds") { openSheet("Ping Buds", pingSheet) }.first
+        btnGestures = tool(Kind.GESTURE, "Gestures") { openSheet("Gestures", gestureSheet) }
+        btnPing = tool(Kind.PING, "Ping Buds") { openSheet("Ping Buds", pingSheet) }
         (btnPing.layoutParams as LinearLayout.LayoutParams).marginEnd = 0
-        controls.addView(row(btnGestures, btnBalance, btnLowLat, btnPing))
+        // Balance and Low-Latency sit on the main screen, in the room the shorter EQ freed.
+        balanceLabel = text("0", 13f, FG).apply { minWidth = dp(32); gravity = Gravity.END; fontFeatureSettings = "tnum" }
+        balanceBar = tintSeek(SeekBar(this)).apply {
+            max = 22; progress = 11; contentDescription = "Left-right balance, 0"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, u: Boolean) {
+                    val n = p - 11
+                    balanceLabel.text = if (n > 0) "+$n" else n.toString()
+                    contentDescription = "Left-right balance, $n"
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) { if (!suppress) sendBalance() }
+            })
+        }
+        val centre = btn("Centre") { balanceBar.progress = 11; sendBalance() }.apply { (layoutParams as LinearLayout.LayoutParams).marginEnd = 0 }
+        balanceRow = row(text("L", 13f, DIM), space(8), weight(balanceBar), space(8), text("R", 13f, DIM), balanceLabel, space(8), centre).apply { minimumHeight = dp(40) }
+        lowLatIcon = icon(Kind.BOLT, FG, 18)
+        game = switch("Low-Latency") { sendGame(it); renderLowLat(it) }.apply {
+            tooltipText = "Lower audio delay for games and video. May use a little more battery."
+        }
+        lowLatRow = row(ImageView(this).apply { setImageDrawable(lowLatIcon); layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(8) } }, weight(game)).apply {
+            minimumHeight = dp(40); tooltipText = game.tooltipText
+        }
+        listenCard = card(balanceRow, lowLatRow)
+        (listenCard.layoutParams as LinearLayout.LayoutParams).bottomMargin = dp(8)
+        controls.addView(listenCard)
+        controls.addView(row(btnGestures, btnPing))
 
         buildSheets()
         setControlsEnabled(false)
@@ -470,23 +541,6 @@ class MainActivity : Activity(), BleClient.Listener {
         }
         // One dropdown per gesture and side, only for gestures the earbuds report; changes are sent right away.
         gestureSheet = col(grid, row(btn("Defaults") { touch = TouchMap.defaults(); renderTouch(); if (ble.protocol != null) { sendTouch(); toast("Gestures sent") } }).apply { setPadding(0, dp(8), 0, 0) })
-
-        // L-R Balance (sent on release)
-        balanceLabel = text("0", 13f, FG).apply { width = dp(32); gravity = Gravity.END }
-        balanceBar = tintSeek(SeekBar(this)).apply {
-            max = 22; progress = 11
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, u: Boolean) { balanceLabel.text = "%+d".format(p - 11).replace("+0", "0") }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) { if (!suppress) sendBalance() }
-            })
-        }
-        balanceSheet = col(row(text("L", 13f, DIM), weight(balanceBar), text("R", 13f, DIM), balanceLabel).apply { minimumHeight = dp(ROW) },
-            row(btn("Centre") { balanceBar.progress = 11; sendBalance() }).apply { setPadding(0, dp(8), 0, 0) })
-
-        // Low-Latency
-        game = switch("Low-Latency") { sendGame(it); renderLowLat(it) }
-        lowLatSheet = col(game, text("Lower audio delay for games and video. May use a little more battery.", 12f, DIM))
 
         // Ping Buds
         pingSheet = col(text("Plays a loud chirp. Take the earbuds out of your ears first.", 12f, DIM).apply { setPadding(0, 0, 0, dp(8)) },
@@ -547,7 +601,7 @@ class MainActivity : Activity(), BleClient.Listener {
         controls.alpha = if (on) 1f else 0.45f
         fun walk(v: View) { v.isEnabled = on; (v as? ViewGroup)?.let { g -> for (i in 0 until g.childCount) walk(g.getChildAt(i)) } }
         walk(controls)
-        for (s in listOf(gestureSheet, balanceSheet, lowLatSheet)) walk(s)
+        if (::gestureSheet.isInitialized) walk(gestureSheet)
         renderLock()
     }
 
@@ -555,38 +609,58 @@ class MainActivity : Activity(), BleClient.Listener {
     private fun renderBattery() {
         val l = Conn.batL; val r = Conn.batR
         val solo = if (Conn.connected) BatteryText.solo(l, r) else null
-        pillL.set(l, Conn.chargeL, missing = solo == "R")
-        pillR.set(r, Conn.chargeR, missing = solo == "L")
-        pillCase.set(Conn.caseBat, Conn.caseCharge, missing = false)
+        pillL.set(l, Conn.chargeL, missing = solo == "R", connected = Conn.connected)
+        pillR.set(r, Conn.chargeR, missing = solo == "L", connected = Conn.connected)
+        pillCase.set(Conn.caseBat, Conn.caseCharge, missing = false, connected = Conn.connected)
         pillCase.visibility = if (Conn.caseBat != null) View.VISIBLE else View.INVISIBLE
-        fun budChip(c: TextView, present: Boolean) {
+        fun budChip(c: TextView, side: String, present: Boolean) {
             c.setTextColor(if (present) ACCENT_FG else DIM)
-            c.background = if (present) round(ACCENT, 12) else outline(LINE, 12)
-            c.contentDescription = "${c.text} earbud " + if (present) "in use" else "not in use"
+            c.background = if (present) round(ACCENT, 20) else outline(LINE, 20)
+            c.contentDescription = "$side earbud " + if (present) "in use" else "not in use"
         }
         val show = Conn.connected && (l != null || r != null)
         for (c in listOf(chipL, chipR)) c.visibility = if (show) View.VISIBLE else View.GONE
-        budChip(chipL, l != null); budChip(chipR, r != null)
-        soloLabel.visibility = if (solo != null) View.VISIBLE else View.GONE
+        budChip(chipL, "Left", l != null); budChip(chipR, "Right", r != null)
     }
     private fun renderConnection(on: Boolean) {
         (connDot.background as GradientDrawable).setColor(if (on) ACCENT else DIM)
         connDot.contentDescription = if (on) "Connected" else "Not connected"
-        deviceName.text = if (on) Conn.name.ifEmpty { if (model.isUnknown) "Earbuds" else model.name } else (Conn.lastName?.let { "$it · tap to connect" } ?: "Tap to connect")
+        deviceName.text = if (on) Conn.name.ifEmpty { "Earbuds" } else (Conn.lastName?.let { "$it · tap to connect" } ?: "Tap to connect")
+        deviceName.tooltipText = deviceName.text
         renderBattery()
     }
     private fun renderLowLat(on: Boolean) { lowLatIcon.color = if (on) ACCENT else FG; lowLatIcon.invalidateSelf() }
 
     // ---------- Tune / Lock EQ / Sound Profiles ----------
     private fun renderLock() {
-        if (!::lockBtn.isInitialized) return
+        if (!::lockBtn.isInitialized || !::lockHint.isInitialized) return
         val locked = eqLocked
         lockBtn.setImageDrawable(icon(if (locked) Kind.LOCK else Kind.UNLOCK, if (locked) ACCENT else DIM))
-        lockBtn.contentDescription = if (locked) "EQ locked. Tap to unlock" else "Lock EQ"
-        eqRow.alpha = if (locked) 0.4f else 1f
+        lockBtn.contentDescription = if (locked) "EQ locked, tap to edit" else "Lock EQ"
+        lockHint.visibility = if (locked) View.VISIBLE else View.GONE
+        eqRow.alpha = 1f
+        for (b in eqBars) b.alpha = if (locked) 0.4f else 1f
+        for (l in eqLabels) l.alpha = 1f
     }
     private fun gainOf(i: Int) = (eqBars[i].progress - 24) / 2f
-    private fun updateEqLabel(i: Int) { eqLabels[i].text = "%.1f".format(gainOf(i)).removeSuffix(".0").replace("-0", "0").let { if (gainOf(i) > 0) "+$it" else it } }
+    private fun roundAway(g: Float) = if (g >= 0) kotlin.math.floor(g + 0.5f).toInt() else -kotlin.math.floor(-g + 0.5f).toInt()
+    private fun exactGain(g: Float): String {
+        val half = kotlin.math.round(g * 2f) / 2f
+        val abs = kotlin.math.abs(half)
+        val num = if (abs % 1f == 0f) abs.toInt().toString() else abs.toString()
+        return when { half == 0f -> "0"; half < 0 -> "-$num"; else -> "+$num" }
+    }
+    private fun describeDb(g: Float): String {
+        val t = exactGain(g)
+        return when { t == "0" -> "0 dB"; t.startsWith("-") -> "minus ${t.drop(1)} dB"; else -> "plus ${t.drop(1)} dB" }
+    }
+    private fun updateEqLabel(i: Int) {
+        val g = gainOf(i)
+        val shown = roundAway(g)
+        eqLabels[i].text = if (shown > 0) "+$shown" else shown.toString()
+        eqLabels[i].tooltipText = exactGain(g) + " dB"
+        eqBars[i].contentDescription = "${EqGrid.FREQS[i]} Hz, ${describeDb(g)}"
+    }
     private fun setEqUi(g: FloatArray) { for (i in 0 until 10) eqBars[i].progress = Math.round(g[i].coerceIn(-12f, 12f) * 2) + 24 }
     private fun eqUi() = FloatArray(10) { gainOf(it) }
     /** No Apply step: a slider change is sent when the finger lifts. */
@@ -600,17 +674,36 @@ class MainActivity : Activity(), BleClient.Listener {
     private val autoEqProfiles by lazy {
         try { AutoEq.parseProfiles(assets.open("autoeq_profiles.tsv").use { it.readBytes().toString(Charsets.UTF_8) }) } catch (e: Exception) { emptyList() }
     }
-    private fun autoEqName(m: String) = "AutoEQ · $m"
-    /** Sound Profiles plus AutoEQ profiles; the connected model's profile is listed first. */
+    /** Sound Profiles plus built-in corrections. Names stay generic and never include an earbud model. */
     private fun presetMap(): LinkedHashMap<String, FloatArray> {
         val (mine, sure) = AutoEq.suggest(autoEqProfiles, model)
         val m = LinkedHashMap<String, FloatArray>()
         mine?.let { m[AutoEq.suggestLabel(it, sure)] = it.gains }
         m.putAll(presets.all())
-        for (p in autoEqProfiles) if (p !== mine) m[autoEqName(p.model)] = p.gains
+        var n = 2
+        for (p in autoEqProfiles) if (p !== mine) m[AutoEq.extraPresetLabel(n++)] = p.gains
         return m
     }
-    private fun isFixed(n: String) = presets.isBuiltIn(n) || n.startsWith("AutoEQ")
+    private fun isFixed(n: String) = presets.isBuiltIn(n) || n.startsWith("AutoEQ") || n.startsWith("Tuned preset")
+    /** Maps a saved name onto the current generic label. Older "AutoEQ · {model}" names are not shown. */
+    private fun canonicalPreset(saved: String?): String? {
+        if (saved.isNullOrEmpty()) return null
+        if (saved in presetMap()) return saved
+        if (model.isUnknown || !saved.startsWith("AutoEQ · ")) return null
+        val rest = saved.removePrefix("AutoEQ · ")
+        val cut = rest.indexOf(" (")
+        val legacy = (if (cut >= 0) rest.substring(0, cut) else rest).trim()
+        if (legacy.isEmpty()) return null
+        val (mine, sure) = AutoEq.suggest(autoEqProfiles, model)
+        if (mine != null && mine.model.equals(legacy, true)) return AutoEq.suggestLabel(mine, sure)
+        var n = 2
+        for (p in autoEqProfiles) {
+            if (p === mine) continue
+            val label = AutoEq.extraPresetLabel(n++)
+            if (p.model.equals(legacy, true)) return label
+        }
+        return null
+    }
     private fun importAutoEq() {
         // Many file managers report AutoEQ .txt files as octet-stream or nothing at all: allow any type, validate the content.
         startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
@@ -628,7 +721,7 @@ class MainActivity : Activity(), BleClient.Listener {
 
     private fun refreshPresets(select: String? = null) {
         val names = presetMap().keys
-        val want = select ?: presets.lastUsed()
+        val want = canonicalPreset(select ?: presets.lastUsed())
         selectedProfile = want?.takeIf { it in names }
         renderChips()
     }
@@ -761,7 +854,13 @@ class MainActivity : Activity(), BleClient.Listener {
             scanning = true
             onStatus("Scanning for 12 s… (take the earbuds out of the case)")
             val gen = scanGen.begin() // a newer scan invalidates this timer so it can't stop the new scan early
-            main.postDelayed({ if (scanGen.isCurrent(gen) && scanning) { stopScan(); onStatus("Scan finished. Pick a device and Connect.") } }, 12000)
+            main.postDelayed({
+                if (scanGen.isCurrent(gen) && scanning) {
+                    stopScan()
+                    val any = seen.isNotEmpty() || bonded.values.any { isKnownEarbud(it.name) }
+                    onStatus(if (any) "Scan finished. Pick a device and Connect." else "No earbuds found. Put them in pairing mode, then Scan.")
+                }
+            }, 12000)
         } catch (e: Exception) { onStatus("Scan failed: ${e.message}") }
     }
     private fun stopScan() {
@@ -774,7 +873,11 @@ class MainActivity : Activity(), BleClient.Listener {
             val ad = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter ?: return
             bonded.clear(); ad.bondedDevices?.forEach { bonded[it.address] = it }
             renderDevices()
-            if (!Conn.connected) onStatus("${bonded.values.count { isKnownEarbud(it.name) }} paired earbud(s). Take the earbuds out of the case, pick one and Connect.")
+            if (!Conn.connected) {
+                val n = bonded.values.count { isKnownEarbud(it.name) }
+                onStatus(if (n == 0 && seen.isEmpty()) "No earbuds found. Put them in pairing mode, then Scan."
+                    else "$n paired earbud(s). Take the earbuds out of the case, pick one and Connect.")
+            }
         } catch (e: Exception) { onStatus("Can't list paired devices: ${e.message}") }
     }
     private fun isKnownEarbud(n: String?) = n?.contains("TOZO", ignoreCase = true) == true
@@ -851,7 +954,7 @@ class MainActivity : Activity(), BleClient.Listener {
     }
 
     // ---------- BleClient.Listener (via Conn) ----------
-    override fun onStatus(text: String) { status.text = text }
+    override fun onStatus(text: String) { status.text = text; status.tooltipText = text; status.contentDescription = text }
     override fun onReady(protocol: Protocol) {
         onStatus("Connected" + if (model.isUnknown || model.tested) "" else " · untested model")
         val f = Models.features(model)
@@ -859,8 +962,11 @@ class MainActivity : Activity(), BleClient.Listener {
         ancBox.visibility = if (f.anc && protocol == Protocol.A) View.VISIBLE else View.GONE
         ancLevelBox.visibility = if (f.ancLevel && protocol == Protocol.A) View.VISIBLE else View.GONE
         ancButtons[AncMode.CUSTOM]?.visibility = ancLevelBox.visibility
-        btnBalance.visibility = if (f.balance && protocol == Protocol.A) View.VISIBLE else View.GONE
-        btnLowLat.visibility = if (f.game) View.VISIBLE else View.GONE
+        val showBal = f.balance && protocol == Protocol.A
+        val showLat = f.game
+        balanceRow.visibility = if (showBal) View.VISIBLE else View.GONE
+        lowLatRow.visibility = if (showLat) View.VISIBLE else View.GONE
+        listenCard.visibility = if (showBal || showLat) View.VISIBLE else View.GONE
         btnGestures.visibility = if (f.touch) View.VISIBLE else View.GONE
         setControlsEnabled(true)
         renderConnection(true)
@@ -868,7 +974,7 @@ class MainActivity : Activity(), BleClient.Listener {
         Conn.game?.let { suppress = true; game.isChecked = it; suppress = false; renderLowLat(it) }
         // Last-used profile wins; otherwise a confident AutoEQ match (never an "may differ by hardware revision" one).
         val (ae, sure) = AutoEq.suggest(autoEqProfiles, model)
-        refreshPresets(presets.lastUsed()?.takeIf { it in presetMap() } ?: ae?.takeIf { sure }?.let { AutoEq.suggestLabel(it, true) })
+        refreshPresets(canonicalPreset(presets.lastUsed()) ?: ae?.takeIf { sure }?.let { AutoEq.suggestLabel(it, true) })
         refreshAll()
         // Options that depend on the link (status notification) are read now, not on the next battery packet.
         Notifier.refreshNow(this)
@@ -904,6 +1010,70 @@ class MainActivity : Activity(), BleClient.Listener {
     }
 
     private fun toast(s: String) = Toast.makeText(this, s, Toast.LENGTH_SHORT).show()
+
+    /**
+     * Home column. Every row except the EQ is measured at its natural height.
+     * The EQ gets whatever is left, and never more than 160dp, so the Sound Profiles
+     * row, Balance, Low-Latency and the tool row stay on screen without scrolling.
+     */
+    private inner class FitColumn(context: android.content.Context) : LinearLayout(context) {
+        var eq: View? = null
+
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            val eqView = eq
+            val tune = eqView?.parent as? View
+            val mode = View.MeasureSpec.getMode(heightMeasureSpec)
+            val size = View.MeasureSpec.getSize(heightMeasureSpec)
+            val width = View.MeasureSpec.getSize(widthMeasureSpec)
+            if (eqView == null || tune == null || tune.parent !== this || mode == View.MeasureSpec.UNSPECIFIED || size == 0 || width == 0) {
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                return
+            }
+            val unspecified = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            var fixed = paddingTop + paddingBottom
+            for (i in 0 until childCount) {
+                val child = getChildAt(i)
+                if (child === tune || child.visibility == GONE) continue
+                val lp = child.layoutParams as ViewGroup.MarginLayoutParams
+                measureChildWithMargins(child, widthMeasureSpec, 0, unspecified, 0)
+                fixed += child.measuredHeight + lp.topMargin + lp.bottomMargin
+            }
+            val tuneLp = tune.layoutParams as ViewGroup.MarginLayoutParams
+            val avail = (size - fixed - tuneLp.topMargin - tuneLp.bottomMargin).coerceAtLeast(0)
+            val tuneInner = (width - paddingLeft - paddingRight - tuneLp.leftMargin - tuneLp.rightMargin - tune.paddingLeft - tune.paddingRight).coerceAtLeast(0)
+            val tuneChildW = View.MeasureSpec.makeMeasureSpec(tuneInner, View.MeasureSpec.EXACTLY)
+            val tuneGroup = tune as ViewGroup
+            var chrome = tune.paddingTop + tune.paddingBottom
+            for (i in 0 until tuneGroup.childCount) {
+                val c = tuneGroup.getChildAt(i)
+                if (c === eqView || c.visibility == GONE) continue
+                val lp = c.layoutParams as ViewGroup.MarginLayoutParams
+                c.measure(getChildMeasureSpec(tuneChildW, 0, lp.width), unspecified)
+                chrome += c.measuredHeight + lp.topMargin + lp.bottomMargin
+            }
+            val eqLp = eqView.layoutParams as ViewGroup.MarginLayoutParams
+            val room = (avail - chrome - eqLp.topMargin - eqLp.bottomMargin).coerceAtLeast(0)
+            val eqMin = dp(90)
+            // Same floor as Windows when the screen can hold it. A shorter window keeps the other rows and gives the EQ whatever is left.
+            var eqH = if (room >= eqMin) room.coerceAtMost(dp(160)) else room
+            eqLp.height = eqH
+            val childW = View.MeasureSpec.makeMeasureSpec((width - paddingLeft - paddingRight - tuneLp.leftMargin - tuneLp.rightMargin).coerceAtLeast(0), View.MeasureSpec.EXACTLY)
+            tune.measure(childW, unspecified)
+            val overflow = tune.measuredHeight - avail
+            if (overflow > 0) {
+                eqH = (eqH - overflow).coerceAtLeast(0)
+                eqLp.height = eqH
+                tune.measure(childW, unspecified)
+            }
+            val used = fixed + tune.measuredHeight + tuneLp.topMargin + tuneLp.bottomMargin
+            val measuredH = when (mode) {
+                View.MeasureSpec.EXACTLY -> size
+                View.MeasureSpec.AT_MOST -> used.coerceAtMost(size)
+                else -> used
+            }
+            setMeasuredDimension(width, measuredH)
+        }
+    }
 }
 
 /** Reads at most [max] bytes (InputStream.readNBytes needs API 33). */

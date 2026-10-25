@@ -37,7 +37,7 @@ object Conn : BleClient.Listener {
     var ancMode: Int? = null; private set
     var ancLevel: Int? = null; private set
     var game: Boolean? = null; private set
-    var status = "Idle"; private set
+    var status = "No earbuds found. Put them in pairing mode, then Scan."; private set
     private var userDisconnected = false
     private var pendingCycle = false
     private var lowWarned = false
