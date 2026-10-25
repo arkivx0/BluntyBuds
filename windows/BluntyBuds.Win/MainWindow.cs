@@ -369,8 +369,8 @@ public sealed class MainWindow : Window
             DockPanel.SetDock(fl, Dock.Bottom); col.Children.Add(fl);
             _eq[i] = new Slider { Orientation = Orientation.Vertical, Minimum = -12, Maximum = 12, TickFrequency = 0.5, IsSnapToTickEnabled = true, SmallChange = 0.5, LargeChange = 1, HorizontalAlignment = HorizontalAlignment.Center };
             _eq[i].ValueChanged += (_, _) => { EqLabel(k); if (!_suppressEq) OnUserEq(); };
-            _eq[i].PreviewMouseLeftButtonDown += (_, e) => { if (_cfg.EqLocked) { e.Handled = true; ShowToast("EQ locked"); } };
-            _eq[i].PreviewKeyDown += (_, e) => { if (_cfg.EqLocked) { e.Handled = true; ShowToast("EQ locked"); } };
+            _eq[i].PreviewMouseLeftButtonDown += (_, e) => { if (_cfg.EqLocked) { e.Handled = true; ShowToast("EQ locked: tap the padlock to unlock"); } };
+            _eq[i].PreviewKeyDown += (_, e) => { if (_cfg.EqLocked) { e.Handled = true; ShowToast("EQ locked: tap the padlock to unlock"); } };
             _eq[i].PreviewMouseWheel += (_, e) => { if (_cfg.EqLocked) e.Handled = true; };
             AutomationName(_eq[i], $"{fl.Text} Hz");
             col.Children.Add(_eq[i]);
@@ -657,7 +657,7 @@ public sealed class MainWindow : Window
     void RememberDeviceEq(float[] g) { if (DevKey is { } k && !_demo) { _cfg.EqByDevice[k] = g; _cfg.Save(); _restoreEq.IsEnabled = true; } }
     async Task RestoreDeviceEq()
     {
-        if (_cfg.EqLocked) { ShowToast("EQ locked"); return; }
+        if (_cfg.EqLocked) { ShowToast("EQ locked: tap the padlock to unlock"); return; }
         if (DevKey is not { } k || !_cfg.EqByDevice.TryGetValue(k, out var g) || g.Length != 10) { _status.Text = "No saved Tune for this device yet (it is saved each time one is sent)."; return; }
         SetEq(g); await SendEq(); _status.Text = "Re-applied your saved Tune for this device.";
     }
@@ -676,7 +676,7 @@ public sealed class MainWindow : Window
     {
         try
         {
-            if (_cfg.EqLocked) { ShowToast("EQ locked"); return; }
+            if (_cfg.EqLocked) { ShowToast("EQ locked: tap the padlock to unlock"); return; }
             var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "AutoEQ ParametricEQ / GraphicEQ (*.txt)|*.txt|All files|*.*" };
             if (dlg.ShowDialog(this) != true) return;
             var prev = EqUi(); var prevSel = _selected;
@@ -970,8 +970,7 @@ public sealed class MainWindow : Window
         var g = EqUi();
         switch (_ble.Protocol)
         {
-            case Protocol.A: await _ble.SendAsync(ProtoA.SetEqGains(g)); break;
-            case Protocol.J: await _ble.SendAsync(ProtoJ.SetEq(g)); break;
+            case Protocol p: foreach (var f in EqWire.Frames(p, g)) await _ble.SendAsync(f); break;
             default: return;
         }
         RememberDeviceEq(g);
@@ -1030,7 +1029,7 @@ public sealed class MainWindow : Window
     {
         try
         {
-            if (_cfg.EqLocked) { ShowToast("EQ locked"); return; }
+            if (_cfg.EqLocked) { ShowToast("EQ locked: tap the padlock to unlock"); return; }
             if (!PresetMap().TryGetValue(n, out var g)) return;
             var prev = EqUi(); var prevSel = _selected;
             SetEq(g); _selected = n; RenderChips();

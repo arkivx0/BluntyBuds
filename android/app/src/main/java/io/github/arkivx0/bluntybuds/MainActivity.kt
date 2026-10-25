@@ -114,8 +114,8 @@ class MainActivity : Activity(), BleClient.Listener {
     private fun scheduleRender() { if (!renderPosted) { renderPosted = true; main.postDelayed(renderTick, 250) } }
 
     private var eqLocked: Boolean
-        get() = ui.getBoolean("eq_locked", false)
-        set(v) { ui.edit().putBoolean("eq_locked", v).apply(); renderLock() }
+        get() = ui.getBoolean("tune_lock", false)
+        set(v) { ui.edit().remove("eq_locked").putBoolean("tune_lock", v).apply(); renderLock() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -357,7 +357,7 @@ class MainActivity : Activity(), BleClient.Listener {
                     override fun onStopTrackingTouch(s: SeekBar?) {}
                 })
                 blocked = { eqLocked }
-                onBlockedTap = { toast("EQ locked") }
+                onBlockedTap = { toast("EQ locked: tap the padlock to unlock") }
                 onRelease = { onSliderReleased() }
             }
             val f = EqGrid.FREQS[i]
@@ -620,7 +620,7 @@ class MainActivity : Activity(), BleClient.Listener {
     }
     /** Tap a chip: applied to the earbuds immediately, with a 3-second Undo. */
     private fun applyProfile(n: String) {
-        if (eqLocked) { toast("EQ locked"); return }
+        if (eqLocked) { toast("EQ locked: tap the padlock to unlock"); return }
         val g = presetMap()[n] ?: return
         val prevGains = eqUi(); val prevSel = selectedProfile
         setEqUi(g); selectedProfile = n; presets.setLastUsed(n); renderChips()
@@ -680,7 +680,7 @@ class MainActivity : Activity(), BleClient.Listener {
                     val n = presets.importJson(json); refreshPresets(selectedProfile); toast("Imported $n Sound Profile(s)")
                 }
                 RC_AUTOEQ -> {
-                    if (eqLocked) { toast("EQ locked"); return }
+                    if (eqLocked) { toast("EQ locked: tap the padlock to unlock"); return }
                     // Any file type can be picked, so check the content: small, text, and a real AutoEQ file (fitText throws otherwise).
                     val bytes = contentResolver.openInputStream(uri)?.use { it.readNBytesCompat((1 shl 20) + 1) } ?: return
                     if (bytes.size > (1 shl 20) || bytes.any { it == 0.toByte() }) throw IllegalArgumentException("not an AutoEQ text file")
@@ -807,7 +807,7 @@ class MainActivity : Activity(), BleClient.Listener {
     }
     private fun sendEq() {
         val g = eqUi()
-        when (ble.protocol) { Protocol.A -> send(ProtoA.setEq(g)); Protocol.J -> send(ProtoJ.setEq(g)); null -> {} }
+        ble.protocol?.let { p -> EqWire.frames(p, g).forEach { send(it) } }
     }
     private fun sendTouch() {
         val m = touchUi(); touch = m

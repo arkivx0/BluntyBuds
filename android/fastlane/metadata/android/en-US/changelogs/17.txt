@@ -1,0 +1,1 @@
+Fix: EQ changes could be silently blocked. A Lock EQ setting left on by 1.4.5-1.4.7 stopped every slider and Sound Profile change. 1.4.8 starts unlocked, and a locked tap now says how to unlock. EQ frames are byte-for-byte the same as 1.4.4.

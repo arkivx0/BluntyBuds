@@ -1,9 +1,9 @@
 ; BluntyBuds Windows installer (Inno Setup 6)
-; Build:  iscc /DAppVersion=1.4.7 /DSourceExe=dist\BluntyBuds.exe BluntyBuds.iss
+; Build:  iscc /DAppVersion=1.4.8 /DSourceExe=dist\BluntyBuds.exe BluntyBuds.iss
 ; Paths are relative to this script's folder (windows\installer).
 
 #ifndef AppVersion
-  #define AppVersion "1.4.7"
+  #define AppVersion "1.4.8"
 #endif
 #ifndef SourceExe
   #define SourceExe "dist\BluntyBuds.exe"

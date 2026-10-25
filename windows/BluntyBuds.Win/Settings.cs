@@ -13,7 +13,8 @@ public sealed class Settings
     public string? LastPreset { get; set; }
     public int LowBatteryPercent { get; set; } = 20;
     /// <summary>Lock EQ: the Tune sliders and Sound Profile chips ignore input until unlocked.</summary>
-    public bool EqLocked { get; set; }
+    /// <summary>Lock EQ. Stored under a new name in 1.4.8: a lock left on by 1.4.5-1.4.7 silently blocked every EQ change.</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("TuneLock")] public bool EqLocked { get; set; }
     public Dictionary<string, float[]> EqByDevice { get; set; } = new();
 
     static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BluntyBuds", "settings.json");

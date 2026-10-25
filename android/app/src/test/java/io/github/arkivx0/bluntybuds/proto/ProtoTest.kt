@@ -208,4 +208,17 @@ class AdParserTest {
             assertTrue("$n EQ frame too short", f.size > EqGrid.FREQS.size)
         }
     }
+
+    /** Golden frames produced by the 1.4.4 code (commit 7c9fe04) for the same gains. */
+    @Test fun eqWireMatches144() {
+        floatArrayOf(-9.5f,-9f,-7f,-8.5f,-5.5f,0f,-4.5f,-9f,-5.5f,-12f).let { g ->
+            assertEquals(listOf("100B15A1A6BAABC900D3A6C988050607080A0C0E10121401B4"), EqWire.frames(Protocol.A, g).map { hex(it) })
+            assertEquals(listOf("AA4150140019000500010032001E00060001006400320007000100C800230008000100900141000A000100200378000C00010040064B000E000100800C1E001000010000194100120001000032000014000100EB"), EqWire.frames(Protocol.J, g).map { hex(it) })
+        }
+        floatArrayOf(3f,1.5f,0f,-2f,-0.5f,12f,6f,-12f,2.5f,0f).let { g ->
+            assertEquals(listOf("100B151E0F00ECFB783C881900050607080A0C0E10121401DE"), EqWire.frames(Protocol.A, g).map { hex(it) })
+            assertEquals(listOf("AA4150140096000500010032008700060001006400780007000100C800640008000100900173000A0001002003F0000C0001004006B4000E000100800C0000100001000019910012000100003278001400010015"), EqWire.frames(Protocol.J, g).map { hex(it) })
+        }
+    }
+    private fun hex(b: ByteArray) = b.joinToString("") { "%02X".format(it) }
 }
