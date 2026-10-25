@@ -12,6 +12,8 @@ public sealed class Settings
     public bool CloseHintShown { get; set; }
     public string? LastPreset { get; set; }
     public int LowBatteryPercent { get; set; } = 20;
+    /// <summary>Lock EQ: the Tune sliders and Sound Profile chips ignore input until unlocked.</summary>
+    public bool EqLocked { get; set; }
     public Dictionary<string, float[]> EqByDevice { get; set; } = new();
 
     static readonly string FilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BluntyBuds", "settings.json");

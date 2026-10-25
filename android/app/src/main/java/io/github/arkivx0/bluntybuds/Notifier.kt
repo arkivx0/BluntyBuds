@@ -57,21 +57,27 @@ object Notifier {
                 return
             }
             nm.cancel(ID_LOW)
-            val bat = BatteryText.format(Conn.batL, Conn.batR, Conn.chargeL, Conn.chargeR)
-            val low = BatteryText.lowest(Conn.batL, Conn.batR)?.let { it <= 20 } == true
+            // One big pill: only the earbud(s) in use. A missing bud is left out, not shown as 0% or "disconnected".
+            val bat = BatteryText.active(Conn.batL, Conn.batR, Conn.chargeL, Conn.chargeR)
+            val level = BatteryText.lowest(Conn.batL, Conn.batR)
+            val low = level?.let { it <= 20 } == true
             val mode = Conn.ancMode?.let { AncMode.of(it)?.label }
-            val detail = when {
-                low -> "Low battery"
-                Conn.features().anc && mode != null -> "Noise: $mode"
-                else -> "Connected"
-            }
+            val solo = BatteryText.solo(Conn.batL, Conn.batR)
+            val detail = listOfNotNull(
+                BatteryText.case(Conn.caseBat, Conn.caseCharge),
+                if (low) "Low battery" else null,
+                if (Conn.features().anc && mode != null) mode else null,
+                solo?.let { "Solo $it" }
+            ).joinToString(" · ").ifEmpty { "Connected" }
             val b = Notification.Builder(app, CH_STATUS)
                 .setSmallIcon(android.R.drawable.stat_sys_headset)
-                .setContentTitle("${Conn.name.ifEmpty { "Earbuds" }} · $bat")
+                .setContentTitle(bat)
+                .setSubText(Conn.name.ifEmpty { "Earbuds" })
                 .setContentText(detail)
                 .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
                 .setContentIntent(openApp(app))
-            if (Conn.features().anc) for ((m, t) in listOf(AncMode.OFF to "Off", AncMode.ANC to "Cancelling", AncMode.TRANSPARENCY to "Ambient")) {
+            if (level != null) b.setProgress(100, level, false)
+            if (Conn.features().anc) for ((m, t) in listOf(AncMode.ANC to "Quiet", AncMode.TRANSPARENCY to "Aware", AncMode.OFF to "Off")) {
                 val pi = PendingIntent.getBroadcast(app, m.code, Intent(app, NotifReceiver::class.java).setAction(ACTION_ANC).putExtra("mode", m.code), PendingIntent.FLAG_IMMUTABLE)
                 b.addAction(Notification.Action.Builder(null, t, pi).build())
             }
@@ -86,7 +92,7 @@ object Notifier {
             nm.notify(ID_LOW, Notification.Builder(ctx, CH_ALERT)
                 .setSmallIcon(android.R.drawable.stat_sys_warning)
                 .setContentTitle("${name.ifEmpty { "Earbuds" }}: low battery")
-                .setContentText(BatteryText.format(l, r, chargingLeft, chargingRight))
+                .setContentText(BatteryText.active(l, r, chargingLeft, chargingRight))
                 .setAutoCancel(true).setContentIntent(openApp(ctx)).build())
         } catch (_: Exception) {}
     }

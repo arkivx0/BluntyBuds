@@ -1,0 +1,5 @@
+- One-screen Home: battery pills, Offline badge, noise, Tune, Sound Profiles, and buttons for Gestures, L-R Balance, Low-Latency, Ping Buds.
+- Solo Mode: the missing bud's pill is an outline. The notification shows only the bud in use, plus the case.
+- Lock EQ. Sound Profile chips apply on tap with Undo; long-press to save or rename.
+- Battery is read right away on connect.
+- New names: Quiet, Aware, Tune, Import Correction.

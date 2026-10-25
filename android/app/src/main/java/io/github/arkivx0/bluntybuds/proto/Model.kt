@@ -15,7 +15,7 @@ enum class TouchAction(val a: Int, val j: Int, val label: String) {
     ASSISTANT(4, 160, "Voice assistant"),
     VOLUME_UP(5, 1, "Volume +"),
     VOLUME_DOWN(6, 2, "Volume -"),
-    GAME_MODE(7, 100, "Toggle game mode"),
+    GAME_MODE(7, 100, "Toggle Low-Latency"),
     ANC_SWITCH(8, 3, "Switch noise mode"),
     ANC_OFF(10, 10, "Noise off");
 
@@ -64,6 +64,8 @@ sealed class Event {
         val chargingLeft: Boolean = false, val chargingRight: Boolean = false,
         val snapshot: Boolean = false, val reportsLeft: Boolean = true, val reportsRight: Boolean = true
     ) : Event()
+    /** Charging-case battery. [level] null = not reported (case closed or not supported). */
+    data class CaseBattery(val level: Int?, val charging: Boolean = false) : Event()
     data class Firmware(val left: String, val right: String?) : Event()
     data class Game(val on: Boolean) : Event()
     data class Touch(val map: TouchMap) : Event()
@@ -98,11 +100,24 @@ object BatteryText {
 
     /** Lowest present earbud. Null when neither side is in use. */
     fun lowest(left: Int?, right: Int?) = listOfNotNull(left, right).minOrNull()
+
+    /** Solo Mode: "L" or "R" when exactly one earbud is in use, null when both or neither are. */
+    fun solo(left: Int?, right: Int?): String? = when {
+        left != null && right == null -> "L"
+        left == null && right != null -> "R"
+        else -> null
+    }
+
+    /** The active earbud only, e.g. "L 82%" or "R 40% charging". Both present: "L 82%  R 75%". */
+    fun active(left: Int?, right: Int?, chargingLeft: Boolean = false, chargingRight: Boolean = false) = format(left, right, chargingLeft, chargingRight)
+
+    /** Small case figure, or null when the case level is unknown. */
+    fun case(level: Int?, charging: Boolean = false) = level?.let { "Case $it%" + if (charging) " charging" else "" }
 }
 
 /** ANC modes as used by protocol A (GET 0x0030 payload[0]). */
 enum class AncMode(val code: Int, val label: String) {
-    OFF(0, "Off"), ANC(1, "Noise cancelling"), TRANSPARENCY(2, "Ambient"),
+    OFF(0, "Off"), ANC(1, "Quiet"), TRANSPARENCY(2, "Aware"),
     WIND(3, "Wind"), LEISURE(4, "Leisure"), CUSTOM(5, "Custom"), ADAPTIVE(6, "Adaptive");
     companion object { fun of(c: Int) = values().firstOrNull { it.code == c } }
 }

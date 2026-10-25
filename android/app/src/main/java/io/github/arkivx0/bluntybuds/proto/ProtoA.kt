@@ -19,6 +19,9 @@ object ProtoA {
     const val RESET_EQ = 0x100C
     const val GET_BALANCE = 0x0026
     const val SET_BALANCE = 0x1026
+    /** Charging case (cmd_hi 0x01 / 0x21). Not every model answers; no reply just leaves the case figure hidden. */
+    const val GET_CASE_BATTERY = 0x0102
+    const val NOTIFY_CASE_BATTERY = 0x210E
     const val NOTIFY_CONN = 0x200D
     const val NOTIFY_BATTERY = 0x200E
     const val NOTIFY_GAME = 0x200F
@@ -117,6 +120,7 @@ object ProtoA {
 
     fun decodePayload(cmd: Int, p: ByteArray): Event = when (cmd) {
         GET_BATTERY, NOTIFY_BATTERY -> decodeBattery(p)?.let { it } ?: Event.Raw(cmd, p)
+        GET_CASE_BATTERY, NOTIFY_CASE_BATTERY -> if (p.isNotEmpty()) BatteryText.parse(p[0].toInt()).let { (l, c) -> Event.CaseBattery(l, c) } else Event.Raw(cmd, p)
         GET_FW_VERSION -> when (p.size) {
             3 -> Event.Firmware(ver(p, 0), null)
             6 -> Event.Firmware(ver(p, 0), ver(p, 3))

@@ -12,7 +12,7 @@ public sealed record TouchAction(string Name, int A, int J, string Label)
     public static readonly TouchAction Assistant = new("ASSISTANT", 4, 160, "Voice assistant");
     public static readonly TouchAction VolumeUp = new("VOLUME_UP", 5, 1, "Volume +");
     public static readonly TouchAction VolumeDown = new("VOLUME_DOWN", 6, 2, "Volume -");
-    public static readonly TouchAction GameMode = new("GAME_MODE", 7, 100, "Toggle game mode");
+    public static readonly TouchAction GameMode = new("GAME_MODE", 7, 100, "Toggle Low-Latency");
     public static readonly TouchAction AncSwitch = new("ANC_SWITCH", 8, 3, "Switch noise mode");
     public static readonly TouchAction AncOff = new("ANC_OFF", 10, 10, "Noise off");
     public static readonly IReadOnlyList<TouchAction> All = new[] { None, PlayPause, Next, Previous, Assistant, VolumeUp, VolumeDown, GameMode, AncSwitch, AncOff };
@@ -53,6 +53,8 @@ public abstract record Event
     /// A partial report only changes the sides it names, so a left-only protocol-J packet does not wipe the right.
     /// </summary>
     public sealed record Battery(int? Left, int? Right, bool ChargingLeft = false, bool ChargingRight = false, bool Snapshot = false, bool ReportsLeft = true, bool ReportsRight = true) : Event;
+    /// <summary>Charging-case battery. Level null = not reported.</summary>
+    public sealed record CaseBattery(int? Level, bool Charging = false) : Event;
     public sealed record Firmware(string Left, string? Right) : Event;
     public sealed record Game(bool On) : Event;
     public sealed record Touch(TouchMap Map) : Event;
@@ -95,6 +97,17 @@ public static class BatteryText
         if (right is int r) m = m is int x ? Math.Min(x, r) : r;
         return m;
     }
+
+    /// <summary>Solo Mode: "L" or "R" when exactly one earbud is in use, null when both or neither are.</summary>
+    public static string? Solo(int? left, int? right) => (left, right) switch
+    {
+        (not null, null) => "L",
+        (null, not null) => "R",
+        _ => null
+    };
+
+    /// <summary>Small case figure, or null when the case level is unknown.</summary>
+    public static string? Case(int? level, bool charging = false) => level is int v ? $"Case {v}%" + (charging ? " charging" : "") : null;
 }
 
 /// <summary>ANC modes as used by protocol A (GET 0x0030 payload[0]).</summary>

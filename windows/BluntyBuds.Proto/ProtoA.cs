@@ -3,6 +3,8 @@ namespace BluntyBuds.Proto;
 /// <summary>Protocol A (vendor GATT protocol). Frame: cmdHi cmdLo len payload sum(payload)&amp;0xFF. Empty request = cmd 00 00.</summary>
 public static class ProtoA
 {
+    /// <summary>Charging case (cmd_hi 0x01 / 0x21). Not every model answers; no reply leaves the case figure hidden.</summary>
+    public const int GetCaseBattery = 0x0102, NotifyCaseBattery = 0x210E;
     public const int GetFwVersion = 0x0001, GetBattery = 0x0002, GetButtons = 0x0003, SetButtons = 0x1003,
         GetGame = 0x0006, SetGame = 0x1006, GetEq = 0x000B, SetEq = 0x100B, ResetEq = 0x100C,
         GetBalance = 0x0026, SetBalance = 0x1026, NotifyBattery = 0x200E, NotifyGame = 0x200F, NotifyEq = 0x2012, NotifyBalance = 0x201D,
@@ -85,9 +87,11 @@ public static class ProtoA
         return new Event.Battery(l, r, cl, cr, Snapshot: true);
     }
 
+    static Event CaseOf(byte b) { var (l, c) = BatteryText.Parse(b); return new Event.CaseBattery(l, c); }
     public static Event DecodePayload(int cmd, byte[] p) => cmd switch
     {
         GetBattery or NotifyBattery => DecodeBattery(p) is { } b ? b : new Event.Raw(cmd, p),
+        GetCaseBattery or NotifyCaseBattery => p.Length > 0 ? CaseOf(p[0]) : new Event.Raw(cmd, p),
         GetFwVersion => p.Length switch
         {
             3 => new Event.Firmware(Ver(p, 0), null),

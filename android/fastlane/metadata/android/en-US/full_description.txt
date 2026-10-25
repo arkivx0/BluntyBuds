@@ -1,28 +1,25 @@
-BluntyBuds is a free, open-source, unofficial controller for TOZO Bluetooth earbuds. It talks to the earbuds directly over Bluetooth Low Energy and works completely offline.
+BluntyBuds is a free, open-source, offline earbuds companion. It talks to the earbuds directly over Bluetooth Low Energy.
 
-<b>Privacy</b>
+<b>No internet. No account. No tracking.</b>
 <ul>
 <li>No INTERNET permission. On Android 10 and 11 it asks for location, which Android requires for Bluetooth scanning</li>
-<li>No account, no analytics, no ads, no auto-update</li>
-<li>No proprietary libraries</li>
+<li>No account, no analytics, no ads, no auto-update, no proprietary libraries</li>
+<li>About and Privacy lists only the permissions you granted</li>
 </ul>
 
 <b>Features</b>
 <ul>
-<li>Battery level for each earbud</li>
-<li>Noise control: off, noise cancelling, ambient, custom depth; game mode</li>
-<li>10-band equalizer (±12 dB) with presets, import/export</li>
-<li>AutoEQ: built-in correction profiles (NC2, NC7, NC9, T6, T10, T12) from AutoEq measurements; the connected model's profile is listed first (marked "may differ by hardware revision" unless the chip matches the measured unit)</li>
-<li>AutoEQ headroom: profiles never boost (highest band at most 0 dB), so no clipping; imported files honor their Preamp line</li>
-<li>Import any AutoEQ ParametricEQ.txt or GraphicEQ.txt, fitted offline to the 10 bands</li>
-<li>Configurable touch controls and balance</li>
-<li>Find my earbuds (play a chirp)</li>
-<li>Quick Settings noise tile, optional status notification with noise buttons, low-battery alert, auto-reconnect</li>
+<li>Home on one screen: device, connection dot, L / Case / R battery pills (number plus bar), Offline badge</li>
+<li>Solo Mode: with one earbud in use, the missing bud's pill fades to an outline instead of 0%; the notification and low-battery alerts use only the earbud in use</li>
+<li>Noise: Quiet, Aware, Off, Custom with a Depth slider (where supported)</li>
+<li>Tune: 10-band EQ (±12 dB), sent as you go, with Lock EQ</li>
+<li>Sound Profiles: chips that apply on tap with a 3-second Undo; long-press to save or rename; import/export</li>
+<li>AutoEQ: built-in correction profiles from AutoEq measurements, and Import Correction for any ParametricEQ.txt or GraphicEQ.txt, fitted offline; profiles never boost</li>
+<li>Gestures, L-R Balance, Low-Latency, Ping Buds</li>
+<li>Quick Settings noise tile, optional status notification, auto-reconnect</li>
 </ul>
 
-Tested on TOZO NC9 and A1; other models are detected and marked "untested".
-
-BluntyBuds is an unofficial project and is not affiliated with or endorsed by TOZO. "TOZO" is used only to describe compatibility.
+Unofficial companion. See the project's README for the list of compatible earbuds; other models are detected and marked "untested".
 
 AutoEQ profiles: AutoEq by Jaakko Pasanen (MIT).
 

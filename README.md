@@ -2,21 +2,14 @@
 
 [![CI](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml/badge.svg)](https://github.com/arkivx0/BluntyBuds/actions/workflows/ci.yml)
 
-Free, open-source controller for TOZO earbuds on Windows and Android: noise control, a 10-band EQ with
-built-in AutoEQ correction profiles (or import your own AutoEQ file), touch-control mapping, battery and
-find-my-earbuds. It talks to the earbuds directly over Bluetooth LE and works fully offline:
-no internet permission, no account, no analytics, no auto-update.
+Free, open-source, offline earbuds companion for Windows and Android: battery with Solo Mode, noise control,
+a 10-band EQ ("Tune") with Sound Profiles and AutoEQ correction, gestures, L-R Balance, Low-Latency and Ping Buds.
+It talks to the earbuds directly over Bluetooth LE.
 
-Unofficial: not affiliated with or endorsed by TOZO. Tested on NC9 and A1; other models are detected and marked untested.
+**No internet. No account. No tracking.** The Android app has no internet permission; the Windows app makes no network connections.
+Unofficial companion. See [Compatibility](#compatibility) for supported earbuds.
 
-![BluntyBuds on Windows (demo mode: one charging earbud, built-in NC9 profile)](docs/hero.png)
-
-## Why this exists
-The official app asks for roughly 39 permissions, including your microphone and your location in the background. It is built around user accounts, ships with analytics and push-notification services, bundles voice chat, and keeps checking in with the vendor's servers. All of that just to change an EQ and read a battery level.
-
-BluntyBuds asks for Bluetooth and notifications. That's it (plus location on Android 10 and 11, which Android requires for Bluetooth scanning). It has no internet permission, so it can't phone home even if it wanted to.
-
-<sub>The description above comes from the official app's own code, not from capturing its network traffic.</sub>
+![BluntyBuds on Windows (demo mode: one earbud in use, case at 64%, built-in NC9 AutoEQ profile)](docs/hero.png)
 
 ## Install on Windows
 Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
@@ -34,19 +27,29 @@ Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkiv
 (allow installs from your browser or file manager when asked). Android 10 or later. The app has no INTERNET permission.
 
 ## Features
-- Model auto-detection; only supported controls are shown
-- Battery and firmware readout
-- Noise control (Off / Noise cancelling / Ambient / Custom depth 1–10) on supported models
-- Game mode, 10-band EQ with presets (import/export JSON), touch-control mapping, L/R balance
-- AutoEQ: built-in correction profiles for models measured by the AutoEq project (the connected model's
-  profile is listed first, marked "may differ by hardware revision" unless the chip matches the measured unit;
-  all are selectable), and "Import AutoEQ file" for any AutoEQ `ParametricEQ.txt` or `GraphicEQ.txt`, fitted
-  to the 10 bands offline. Profiles never boost: the highest band is at most 0 dB to avoid clipping
-- "Find earbuds" chirp
-- Windows: tray icon with battery, tray menu, low-battery toast, auto-reconnect, minimize to tray,
-  optional Start with Windows, global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered EQ
-- Android: auto-reconnect, Quick Settings "Noise" tile, optional status notification with noise buttons,
-  low-battery notification
+- **Home on one screen**, dark and compact: device name, connection dot, L / Case / R battery pills
+  (number plus bar) and an "Offline" badge on top; noise control and Tune in the middle; Gestures,
+  L-R Balance, Low-Latency and Ping Buds as icon buttons at the bottom that open compact flyouts (sheets on Android).
+  Controls the connected model doesn't support are hidden.
+- **Solo Mode**: when only one earbud is in use, BluntyBuds shows L/R chips and fades the missing
+  bud's pill to an outline instead of showing 0%. The notification, the Windows tray tooltip ("L 82%")
+  and low-battery alerts use only the earbud in use; a missing bud is never reported as low or disconnected.
+  The case level is shown as a small figure when the earbuds report it.
+- **Noise**: Quiet, Aware, Off and Custom, with a Depth slider (1–10) on models that support it.
+- **Tune**: 10-band EQ (±12 dB). Changes are sent as you go; there is no Apply step.
+  **Lock EQ** (padlock next to Tune) dims the sliders and shows "EQ locked" if you touch them; it is remembered between launches.
+- **Sound Profiles**: chips under Tune apply on tap, with a 3-second Undo. Long-press (Windows: hold or right-click)
+  a chip to save the current Tune into it, rename it or delete it; "+ Save" adds a new one. Import / export as JSON.
+- **AutoEQ**: built-in correction profiles for models measured by the AutoEq project (the connected model's
+  profile is listed first, marked "may differ by hardware revision" unless the chip matches the measured unit),
+  and **Import Correction** for any AutoEQ `ParametricEQ.txt` or `GraphicEQ.txt`, fitted to the 10 bands offline.
+  Profiles never boost: the highest band is at most 0 dB.
+- **Gestures** (touch controls), **L-R Balance**, **Low-Latency** (game mode), **Ping Buds** (loud chirp to find them).
+- **About and Privacy** lists only the permissions actually granted.
+- Windows: tray icon with battery tooltip, tray menu, low-battery toast, auto-reconnect, minimize/close to tray,
+  optional Start with Windows, global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered Tune, dark title bar.
+- Android: edge-to-edge, fixed dark theme (no dynamic color), auto-reconnect, Quick Settings "Noise" tile,
+  optional status notification (one battery bar for the earbud in use, small case figure, noise buttons), low-battery notification.
 
 ## Build
 Windows (.NET 8): `cd windows/BluntyBuds.Win && dotnet publish -c Release -o ../publish`
@@ -63,7 +66,17 @@ Without it the release APK is built unsigned.
 
 ![Touch-control mapping (demo mode)](docs/touch-controls.png)
 
-## Model support
+## Screenshots
+Rendered in demo mode (made-up data, no Bluetooth).
+
+![Gestures flyout (demo mode)](docs/gestures.png)
+
+![Sound flyout: Import Correction and Sound Profile files (demo mode)](docs/sound.png)
+
+## Compatibility
+
+BluntyBuds works with TOZO earbuds that use protocol A or J (listed below). It is not affiliated with or endorsed by TOZO;
+the name is used only to describe compatibility.
 
 The model table (`ModelTable.g.cs` / `ModelTable.kt`) is plain data: advertised id code -> model name, chip family, protocol, features.
 Detection uses the advertised id code first, then the Bluetooth name; the transport (protocol A or J) is confirmed from the GATT services on connect.

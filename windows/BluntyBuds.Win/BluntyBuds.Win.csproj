@@ -19,7 +19,7 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <InvariantGlobalization>false</InvariantGlobalization>
     <PublishTrimmed>false</PublishTrimmed>
-    <Version>1.4.4</Version>
+    <Version>1.4.5</Version>
   </PropertyGroup>
   <ItemGroup><Using Remove="System.Windows.Forms" /><Using Remove="System.Drawing" /></ItemGroup>
   <ItemGroup><Resource Include="bluntybuds.ico" /></ItemGroup>

@@ -29,6 +29,8 @@ object Conn : BleClient.Listener {
     var batR: Int? = null; private set
     var chargeL = false; private set
     var chargeR = false; private set
+    var caseBat: Int? = null; private set
+    var caseCharge = false; private set
     private var pollToken = 0
     private var sawL = false
     private var sawR = false
@@ -65,7 +67,7 @@ object Conn : BleClient.Listener {
             main.removeCallbacks(retry)
             userDisconnected = false
             model = m; name = n
-            batL = null; batR = null; chargeL = false; chargeR = false; lowWarned = false
+            batL = null; batR = null; chargeL = false; chargeR = false; caseBat = null; caseCharge = false; lowWarned = false
             prefs.edit().putString("addr", d.address).putString("name", n).apply()
             ble.connect(d, hint)
         } catch (e: Exception) { onStatus("Connect failed: ${e.message}") }
@@ -118,7 +120,7 @@ object Conn : BleClient.Listener {
         update { ancMode = AncMode.CUSTOM.code; ancLevel = level }
     }
     fun nextAnc(): AncMode = when (ancMode) { 0 -> AncMode.ANC; 1 -> AncMode.TRANSPARENCY; else -> AncMode.OFF }
-    /** Tile / hotkey style cycling: Off -> ANC -> Ambient -> Off. Connects first if needed. */
+    /** Tile / hotkey style cycling: Off -> Quiet -> Aware -> Off. Connects first if needed. */
     fun cycleAnc() {
         if (connected) { setAnc(nextAnc()); return }
         pendingCycle = connectLast()
@@ -155,7 +157,7 @@ object Conn : BleClient.Listener {
             if (!statusNotification) Notifier.lowBattery(app, name, batL, batR, chargeL, chargeR)
         } else if (low == null || low > 25) lowWarned = false
     }
-    private fun markDisconnected() { connected = false; publish() }
+    private fun markDisconnected() { connected = false; caseBat = null; publish() }
 
     /** One attempt at a time: the next retry is scheduled only when this attempt fails (onDisconnected). */
     private fun mayRetry() = RetryPolicy.shouldRetry(connected, autoReconnect, userDisconnected, lastAddress != null)
@@ -178,9 +180,14 @@ object Conn : BleClient.Listener {
     override fun onReady(protocol: Protocol) {
         connected = true; backoff.reset(); lowWarned = false
         main.removeCallbacks(retry)
-        if (listeners.isEmpty() && protocol == Protocol.A) {
-            send(ProtoA.get(ProtoA.GET_BATTERY))
-            if (features().anc) send(ProtoA.get(ProtoA.GET_ANC_MODE))
+        // Read the battery (and case) right away on every connect, not only on the next notify,
+        // so the strip, the notification and the tray pick it up immediately.
+        when (protocol) {
+            Protocol.A -> {
+                send(ProtoA.get(ProtoA.GET_BATTERY)); send(ProtoA.get(ProtoA.GET_CASE_BATTERY))
+                if (listeners.isEmpty() && features().anc) send(ProtoA.get(ProtoA.GET_ANC_MODE))
+            }
+            Protocol.J -> { beginBatteryPoll(); send(ProtoJ.get(ProtoJ.BATTERY_LEFT)); send(ProtoJ.get(ProtoJ.BATTERY_RIGHT)) }
         }
         if (pendingCycle) { pendingCycle = false; ancMode?.let { setAnc(nextAnc()) } ?: setAnc(AncMode.ANC) }
         publish()
@@ -189,6 +196,7 @@ object Conn : BleClient.Listener {
     override fun onEvent(e: Event) {
         when (e) {
             is Event.Battery -> applyBattery(e)
+            is Event.CaseBattery -> { caseBat = e.level; caseCharge = e.charging }
             is Event.Anc -> ancMode = e.mode
             is Event.AncLevel -> ancLevel = e.level
             is Event.Game -> game = e.on

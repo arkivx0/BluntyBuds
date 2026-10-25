@@ -16,6 +16,8 @@ public static class Theme
         {
             var h = new WindowInteropHelper(w).Handle; int on = 1;
             if (DwmSetWindowAttribute(h, 20, ref on, 4) != 0) DwmSetWindowAttribute(h, 19, ref on, 4); // 19 = pre-20H1
+            int caption = 0x00120F0E; // Windows 11: title bar in the app background colour (#0E0F12, COLORREF is BGR); ignored on Windows 10
+            DwmSetWindowAttribute(h, 35, ref caption, 4);
         }
         catch { }
     }
@@ -27,14 +29,15 @@ public static class Theme
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Color x:Key="BgC">#0E0F12</Color>
   <SolidColorBrush x:Key="Bg" Color="#0E0F12"/>
-  <SolidColorBrush x:Key="Card" Color="#1A1C21"/>
-  <SolidColorBrush x:Key="Ctl" Color="#262931"/>
+  <SolidColorBrush x:Key="Card" Color="#17191E"/>
+  <SolidColorBrush x:Key="Ctl" Color="#23262D"/>
   <SolidColorBrush x:Key="CtlHover" Color="#30343E"/>
   <SolidColorBrush x:Key="Line" Color="#353944"/>
   <SolidColorBrush x:Key="Fg" Color="#E6E8EE"/>
   <SolidColorBrush x:Key="Dim" Color="#8C93A3"/>
   <SolidColorBrush x:Key="Accent" Color="#3DD6B5"/>
   <SolidColorBrush x:Key="AccentFg" Color="#0B1A17"/>
+  <SolidColorBrush x:Key="AccentDim" Color="#1F6B5B"/>
 
   <Style TargetType="Window">
     <Setter Property="Background" Value="{StaticResource Bg}"/>
@@ -78,6 +81,82 @@ public static class Theme
     <Setter Property="Padding" Value="7,2"/><Setter Property="FontSize" Value="11"/>
   </Style>
 
+  <!-- borderless icon / text button -->
+  <Style x:Key="FlatButton" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Padding" Value="8,0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="b" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="{StaticResource CtlHover}"/></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <!-- bottom-row tool: icon over a small label, on a surface tile -->
+  <Style x:Key="ToolButton" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Height" Value="56"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="b" Background="{StaticResource Card}" CornerRadius="12" Padding="0,8">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="{StaticResource Ctl}"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter TargetName="b" Property="Background" Value="{StaticResource CtlHover}"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <!-- Sound Profile chips -->
+  <Style x:Key="Chip" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource Fg}"/>
+    <Setter Property="Background" Value="{StaticResource Ctl}"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Margin" Value="0,0,8,0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="16" Padding="12,0">
+            <ContentPresenter VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="{StaticResource CtlHover}"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="ChipOn" TargetType="Button" BasedOn="{StaticResource Chip}">
+    <Setter Property="Foreground" Value="{StaticResource AccentFg}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border Background="{StaticResource Accent}" CornerRadius="16" Padding="12,0">
+            <ContentPresenter VerticalAlignment="Center"/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- segmented toggle (RadioButton) -->
   <Style x:Key="Segment" TargetType="RadioButton">
     <Setter Property="Foreground" Value="{StaticResource Fg}"/>
@@ -86,7 +165,7 @@ public static class Theme
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
-          <Border x:Name="b" Background="Transparent" CornerRadius="5" Padding="12,4" Margin="2">
+          <Border x:Name="b" Background="Transparent" CornerRadius="6" Padding="12,0" Margin="1">
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <ControlTemplate.Triggers>
@@ -203,7 +282,7 @@ public static class Theme
     <Grid Background="Transparent" MinWidth="18">
       <Border Width="4" CornerRadius="2" Background="{StaticResource Ctl}" HorizontalAlignment="Center"/>
       <Border Width="10" Height="1" Background="{StaticResource Dim}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-      <Track x:Name="PART_Track" IsDirectionReversed="True">
+      <Track x:Name="PART_Track">
         <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource SliderRepeat}" Command="Slider.DecreaseLarge"/></Track.DecreaseRepeatButton>
         <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource SliderRepeat}" Command="Slider.IncreaseLarge"/></Track.IncreaseRepeatButton>
         <Track.Thumb><Thumb Style="{StaticResource SliderThumb}"/></Track.Thumb>

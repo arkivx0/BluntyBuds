@@ -46,6 +46,17 @@ class ProtoATest {
         assertEquals(40, BatteryText.lowest(null, 40))
         assertNull(BatteryText.lowest(null, null))
     }
+    @Test fun soloAndCase() {
+        assertEquals("L", BatteryText.solo(82, null))
+        assertEquals("R", BatteryText.solo(null, 40))
+        assertNull(BatteryText.solo(80, 75))
+        assertNull(BatteryText.solo(null, null))
+        assertEquals("L 82%", BatteryText.active(82, null))
+        assertEquals("Case 60%", BatteryText.case(60))
+        assertNull(BatteryText.case(null))
+        assertEquals(Event.CaseBattery(60, false), ProtoA.decode(ProtoA.frame(0x0102, byteArrayOf(60))))
+        assertEquals(Event.CaseBattery(null, false), ProtoA.decode(ProtoA.frame(0x210E, byteArrayOf(0xFF.toByte()))))
+    }
     @Test fun decodeVersion() {
         assertEquals(Event.Firmware("1.2.3", "1.2.4"), ProtoA.decode(ProtoA.frame(0x0001, h("01 02 03 01 02 04"))))
         assertEquals(Event.Firmware("2.0.200", null), ProtoA.decode(ProtoA.frame(0x0001, h("02 00 C8"))))

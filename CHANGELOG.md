@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.4.5
+- Home on one screen, no scrolling (both apps): top strip with the device name, a connection dot, L / Case / R battery pills (number plus bar) and an "Offline" badge; noise control; Tune with Sound Profile chips; a bottom row of icon buttons (Gestures, L-R Balance, Low-Latency, Ping Buds) that open compact flyouts (Windows) or sheets (Android). Unsupported controls are hidden. Colors: background #0E0F12, surfaces #17191E, one accent; 8 px grid, 32 px rows, 13–14 sp text.
+- Solo Mode: when only one earbud is in use, L/R chips show which one, and the missing bud's pill fades to an outline instead of 0%.
+- Battery: the Android notification shows only the earbud in use (one progress bar) with a small Case figure; the Windows tray tooltip reads like "L 82%". Low-battery alerts use only the earbud in use; the missing one is never flagged as low or disconnected. The case level is read where the earbuds report it.
+- Lock EQ: a padlock next to Tune dims the sliders; touching one shows "EQ locked". Remembered between launches.
+- Sound Profiles: chips under Tune apply on tap (no Apply step), with a 3-second Undo. Long-press (Windows: hold or right-click) to save the current Tune, rename or delete. Slider changes are sent as you go.
+- Fix: the battery is read immediately on connect (also when the app opens while already connected), and the strip, the notification and the tray refresh right away.
+- Fix (Windows): the EQ sliders were drawn upside down (negative gains near the top). They now match the values.
+- Windows: --demo no longer touches the Bluetooth stack.
+- Names: screens Home, Sound, Gestures, About and Privacy. Noise modes Quiet, Aware, Off, Custom (+ Depth). EQ is "Tune", presets are "Sound Profiles", AutoEQ file import is "Import Correction", find is "Ping Buds", game mode is "Low-Latency", balance is "L-R Balance".
+- About and Privacy: "No internet. No account. No tracking.", the permissions actually granted, and "Unofficial companion".
+- Android: edge-to-edge on every version, fixed dark theme (no dynamic color). Windows: dark title bar (caption color matches the background on Windows 11).
+- Docs: README and screenshots updated for 1.4.5 (demo mode).
+
 ## 1.4.4
 - One earbud: battery text, the tray, and alerts show only the bud that is in use. A missing bud is left out. It is not called disconnected and it does not keep the last percent. Low-battery alerts use only the bud you are wearing. A charging bud is marked "charging".
 - EQ: Load, and an AutoEQ file import, sends the profile immediately on Windows and Android, so you do not click Apply afterwards.

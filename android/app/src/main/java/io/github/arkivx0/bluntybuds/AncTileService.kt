@@ -5,7 +5,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import io.github.arkivx0.bluntybuds.proto.AncMode
 
-/** Quick Settings tile: tap to cycle noise mode (Off -> Noise cancelling -> Ambient). Connects to the last device if needed. */
+/** Quick Settings tile: tap to cycle noise mode (Off -> Quiet -> Aware). Connects to the last device if needed. */
 class AncTileService : TileService() {
     override fun onStartListening() { Conn.init(this); render() }
     override fun onClick() {

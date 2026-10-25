@@ -1,1 +1,1 @@
-Offline TOZO earbud controller: noise control, AutoEQ, EQ, touch controls
+Offline earbuds companion: battery, Solo Mode, noise, Tune EQ, AutoEQ, gestures

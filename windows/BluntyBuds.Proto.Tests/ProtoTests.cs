@@ -28,6 +28,18 @@ public class ProtoTests
         Assert.Equal("L 80% charging", BatteryText.Format(80, null, chargingLeft: true));
         Assert.Equal(40, BatteryText.Lowest(null, 40));
         Assert.Null(BatteryText.Lowest(null, null));
+    }
+    [Fact] public void SoloAndCase()
+    {
+        Assert.Equal("L", BatteryText.Solo(82, null));
+        Assert.Equal("R", BatteryText.Solo(null, 40));
+        Assert.Null(BatteryText.Solo(80, 75));
+        Assert.Null(BatteryText.Solo(null, null));
+        Assert.Equal("L 82%", BatteryText.Format(82, null));
+        Assert.Equal("Case 60%", BatteryText.Case(60));
+        Assert.Null(BatteryText.Case(null));
+        Assert.Equal(new Event.CaseBattery(60), ProtoA.Decode(ProtoA.Frame(0x0102, new byte[] { 60 })));
+        Assert.Equal(new Event.CaseBattery(null), ProtoA.Decode(ProtoA.Frame(0x210E, new byte[] { 0xFF })));
         Assert.Equal(new Event.Firmware("1.2.3", "1.2.4"), ProtoA.Decode(ProtoA.Frame(0x0001, H("010203010204"))));
         Assert.Equal(new Event.Firmware("2.0.200", null), ProtoA.Decode(ProtoA.Frame(0x0001, H("0200C8"))));
     }
