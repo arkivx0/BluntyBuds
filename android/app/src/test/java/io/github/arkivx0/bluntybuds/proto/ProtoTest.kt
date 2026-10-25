@@ -196,4 +196,16 @@ class AdParserTest {
             assertEquals(anc, ProtoA.GET_ANC_MODE in q); assertEquals(lvl, ProtoA.GET_CUSTOM_ANC_LEVEL in q)
         }
     }
+
+    @Test fun everySupportedModelHasTenEqBandsThatEncode() {
+        assertTrue(Models.supportedNames.isNotEmpty())
+        assertEquals(10, EqGrid.FREQS.size); assertEquals(10, EqGrid.QS.size)
+        for (n in Models.supportedNames) {
+            val m = Models.detect(n)
+            assertFalse("$n not recognised", m.isUnknown)
+            val g = FloatArray(EqGrid.FREQS.size) { 1.5f }
+            val f = if (m.hint == Protocol.J) ProtoJ.setEq(g) else ProtoA.setEq(g)
+            assertTrue("$n EQ frame too short", f.size > EqGrid.FREQS.size)
+        }
+    }
 }

@@ -1,0 +1,1 @@
+Fix (Android): the Tune card showed only its header, with no EQ sliders and no Sound Profile chips. A spacer in the header grew to fill the whole card; it is now 1px tall and the band row has a minimum height.

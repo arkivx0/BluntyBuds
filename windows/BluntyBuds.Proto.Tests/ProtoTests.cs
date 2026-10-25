@@ -170,4 +170,18 @@ public class ProtoTests
             Assert.Equal(lvl, q.Contains(ProtoA.GetCustomAncLevel));
         }
     }
+
+    [Fact] public void EverySupportedModelHasTenEqBandsThatEncode()
+    {
+        Assert.NotEmpty(Models.SupportedNames);
+        Assert.Equal(10, EqGrid.Freqs.Length);
+        foreach (var n in Models.SupportedNames)
+        {
+            var m = Models.Detect(n);
+            Assert.False(m == DeviceModel.Unknown, n);
+            var g = Enumerable.Repeat(1.5f, EqGrid.Freqs.Length).ToArray();
+            var f = m.Hint == Protocol.J ? ProtoJ.SetEq(g) : ProtoA.SetEqGains(g);
+            Assert.True(f.Length > EqGrid.Freqs.Length, n);
+        }
+    }
 }

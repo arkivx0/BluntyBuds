@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.7
+
+- Fix (Android): the Tune card showed only its header, with no EQ sliders and no Sound Profile chips. A spacer in the header grew to fill the whole card; it is now 1px tall and the band row has a minimum height.
+
 ## 1.4.6
 
 - Fix: noise, Tune and other controls had no effect on some earbuds. 1.4.5 asked the charging case for its battery on connect, which can stall the earbuds' command handling. That request is gone; the case figure now shows only when the earbuds report it on their own.

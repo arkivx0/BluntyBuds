@@ -339,9 +339,11 @@ class MainActivity : Activity(), BleClient.Listener {
 
         // ---- Tune: EQ with Lock EQ, Sound Profile chips below ----
         lockBtn = iconBtn(Kind.UNLOCK, "Lock EQ") { eqLocked = !eqLocked; toast(if (eqLocked) "EQ locked" else "EQ unlocked") }
-        val tuneHeader = row(title("Tune"), space(4), lockBtn, weight(View(this)),
+        // Spacer must be 1px tall: a bare View with WRAP_CONTENT fills all the height it is offered, which made this
+        // header swallow the whole Tune card and squeezed the band sliders and Sound Profile chips to nothing.
+        val tuneHeader = row(title("Tune"), space(4), lockBtn, View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) },
             btn("Sound") { openSheet("Sound", soundSheet) }.apply { (layoutParams as LinearLayout.LayoutParams).marginEnd = 0 })
-        eqRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, dp(4)) }
+        eqRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(4), 0, dp(4)); minimumHeight = dp(140) }
         for (i in 0 until 10) {
             val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 1f) }
             val lbl = text("0", 12f, FG).apply { gravity = Gravity.CENTER }
