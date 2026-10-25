@@ -61,6 +61,7 @@ Release signing is read from a properties file **outside** the repo:
 Without it the release APK is built unsigned.
 
 ## Screenshots
+### Windows
 Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
 
 ![Tune with the Sound Profiles dropdown open (demo mode)](docs/sound.png)
@@ -68,6 +69,15 @@ Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder ad
 ![Gestures: one dropdown per gesture and side (demo mode)](docs/gestures.png)
 
 ![About and Privacy (demo mode)](docs/about.png)
+
+### Android
+Android 1.4.9 on a phone (real device, TOZO NC9).
+
+<p>
+  <img src="docs/android/home.png" width="220" alt="Android Home with the Rock profile">
+  <img src="docs/android/profiles.png" width="220" alt="Android Sound Profiles dropdown open">
+  <img src="docs/android/sound.png" width="220" alt="Android Sound sheet: Import Correction and profile files">
+</p>
 
 ## Compatibility
 
