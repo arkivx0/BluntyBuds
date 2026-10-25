@@ -1052,7 +1052,10 @@ class MainActivity : Activity(), BleClient.Listener {
                 chrome += c.measuredHeight + lp.topMargin + lp.bottomMargin
             }
             val eqLp = eqView.layoutParams as ViewGroup.MarginLayoutParams
-            var eqH = (avail - chrome - eqLp.topMargin - eqLp.bottomMargin).coerceIn(0, dp(160))
+            val room = (avail - chrome - eqLp.topMargin - eqLp.bottomMargin).coerceAtLeast(0)
+            val eqMin = dp(90)
+            // Same floor as Windows when the screen can hold it. A shorter window keeps the other rows and gives the EQ whatever is left.
+            var eqH = if (room >= eqMin) room.coerceAtMost(dp(160)) else room
             eqLp.height = eqH
             val childW = View.MeasureSpec.makeMeasureSpec((width - paddingLeft - paddingRight - tuneLp.leftMargin - tuneLp.rightMargin).coerceAtLeast(0), View.MeasureSpec.EXACTLY)
             tune.measure(childW, unspecified)

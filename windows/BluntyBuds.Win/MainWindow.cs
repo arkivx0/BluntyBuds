@@ -55,8 +55,9 @@ public sealed class MainWindow : Window
     readonly Dictionary<ulong, (string Name, short Rssi, AdParser.VendorAd? Ad)> _seen = new();
 
     const string NoBuds = "No earbuds found. Put them in pairing mode, then Scan.";
-    /// <summary>EQ block cap, in device-independent pixels. The block gives up height before any other row does.</summary>
+    /// <summary>EQ block cap and floor, in device-independent pixels. The block gives up height before any other row, and never collapses the sliders.</summary>
     const double EqMax = 160;
+    const double EqMin = 90;
     readonly TextBlock _status = new() { Text = NoBuds, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 36, VerticalAlignment = VerticalAlignment.Center, FontSize = 12, ToolTip = NoBuds };
     readonly ComboBox _devices = new() { Width = 300, MaxDropDownHeight = 260 };
     readonly CheckBox _showAll = new() { Content = "All", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
@@ -207,7 +208,8 @@ public sealed class MainWindow : Window
     {
         _startHidden = startHidden; _demo = demo;
         Title = "BluntyBuds";
-        Width = 600; Height = 640; MinWidth = 560; MinHeight = 560;
+        // At 560 the EQ row collapsed to nothing. 660 keeps that row at about 100px, above the 90px floor.
+        Width = 600; Height = 660; MinWidth = 560; MinHeight = 660;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         // implicit Window style doesn't apply to subclasses, so set the theme brushes directly
         try { Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/bluntybuds.ico")); } catch (Exception ex) { Program.Log(ex, "window icon"); }
@@ -438,7 +440,7 @@ public sealed class MainWindow : Window
         // Header and Sound Profiles are Auto, so they keep their height. The EQ row is the only star and never grows past EqMax.
         var tuneGrid = new Grid();
         tuneGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        tuneGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MaxHeight = EqMax, MinHeight = 0 });
+        tuneGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MaxHeight = EqMax, MinHeight = EqMin });
         tuneGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         // The Undo snackbar floats over the lower part of the sliders, never over the dropdown.
         var eqHost = new Grid { Margin = new Thickness(0, 4, 0, 0), ClipToBounds = true };
@@ -630,7 +632,10 @@ public sealed class MainWindow : Window
             double maxCard = Math.Max(0, _tuneSlot.ActualHeight - _tuneCard.Margin.Top - _tuneCard.Margin.Bottom);
             double chrome = _tuneCard.Padding.Top + _tuneCard.Padding.Bottom + Box(_tuneHdr) + Box(_profRow);
             double natural = chrome + EqMax;
+            double floor = chrome + EqMin;
+            // Stay at least EqMin tall when the slot allows it, and never draw the card over the rows below.
             double h = Math.Min(maxCard, natural);
+            if (maxCard >= floor) h = Math.Max(h, floor);
             if (h < 1) return;
             if (double.IsNaN(_tuneCard.Height) || Math.Abs(_tuneCard.Height - h) > 0.5) _tuneCard.Height = h;
         }

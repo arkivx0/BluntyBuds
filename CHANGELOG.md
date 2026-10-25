@@ -11,7 +11,7 @@
 - Built-in correction presets use generic names ("Tuned preset", "Tuned preset (approximate)", then numbered). They do not include an earbud model.
 - Battery pills and EQ sliders have accessibility names.
 - Android: the close button minimizes instead of quitting. Labels follow large system font sizes and shrink to fit instead of clipping.
-- Windows: the window can shrink to about 560 px so a short screen still fits. The EQ gives up height first.
+- Windows: the window is 600×660 and does not shrink below that. The EQ gives up height first, and the slider row stays at least about 90 px so the sliders do not disappear. Android keeps the same 90 dp floor when the screen is tall enough.
 
 ## 1.4.9
 

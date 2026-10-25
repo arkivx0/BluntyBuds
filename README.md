@@ -9,7 +9,7 @@ on the main screen, and Ping Buds. It talks to the earbuds directly over Bluetoo
 **No internet. No account. No tracking.** The Android app has no internet permission; the Windows app makes no network connections.
 Unofficial companion. See [Compatibility](#compatibility) for supported earbuds.
 
-![BluntyBuds 1.4.9 on Windows: Home (demo mode, one earbud in use, made-up data)](docs/home.png)
+![BluntyBuds on Windows: Home (demo mode, one earbud in use, made-up data)](docs/home.png)
 
 ## Install on Windows
 Download from [Releases](https://github.com/arkivx0/BluntyBuds/releases/latest):
@@ -36,7 +36,7 @@ Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkiv
 - **Single-earbud battery**: the notification, the Windows tray tooltip (e.g. "L 82%") and low-battery alerts use only the
   earbud in use; a missing bud is never reported as low or disconnected. The case level appears as its own pill, with the charging mark beside the percent so "Case 100%" is not clipped.
 - **Noise**: Quiet, Aware, Off and Custom, with a Depth slider (1–10) where the earbuds support it.
-- **Tune**: 10-band EQ (±12 dB), capped so it stays short and shrinks first when the window is short. Gain labels are whole numbers (the exact value is in the tooltip) and are sent as you change them.
+- **Tune**: 10-band EQ (±12 dB), capped at about 160 px and never shorter than about 90 px, so the sliders stay usable when the window is short. Gain labels are whole numbers (the exact value is in the tooltip) and are sent as you change them.
   **Lock EQ** shows **Locked, tap to edit** and fades the sliders to 40%. The band labels stay at full contrast. The lock is remembered.
 - **Sound Profiles**: a dropdown under Tune. Pick a profile and it applies at once, with a 3-second **Undo**.
   **Edit** next to it saves the current Tune as a new profile, or saves into, renames or deletes your own. Import and export as JSON (Sound).
@@ -48,11 +48,11 @@ Download **`BluntyBuds-<version>.apk`** from [Releases](https://github.com/arkiv
 - **L-R Balance** and **Low-Latency** (lower audio delay) are on the main screen. **Ping Buds** plays a loud chirp to find them.
 - **About and Privacy**: "No internet. No account. No tracking.", the permissions actually granted, and "Unofficial companion".
   Battery pills and EQ sliders have accessibility names (percent, charging, and each band in Hz and dB).
-- Windows: the window can shrink to fit a short screen. Status text wraps to two lines, and the full message stays in a tooltip.
+- Windows: the window is 600×660 and does not shrink below that. The EQ gives up height first, down to about 90 px. Status text wraps to two lines, and the full message stays in a tooltip.
   Tray icon with battery tooltip and menu, low-battery toast, auto-reconnect, minimize/close to tray, optional Start with Windows,
   global hotkey **Ctrl+Alt+N** (cycle noise mode), per-device remembered Tune, dark title bar.
   If a scan finds nothing: "No earbuds found. Put them in pairing mode, then Scan."
-- Android: the close button minimizes. Back still quits. Labels use sp and shrink to fit instead of clipping when the system font is large.
+- Android: the close button minimizes. Back still quits. The EQ stays at least about 90 dp on a normal screen, and only gets shorter when that is what keeps the other rows on screen. Labels use sp and shrink to fit instead of clipping when the system font is large.
   Edge-to-edge, fixed dark theme (no dynamic color), auto-reconnect, Quick Settings "Noise" tile,
   optional status notification (one battery bar for the earbud in use, small case figure, noise buttons), low-battery notification.
 
@@ -69,7 +69,7 @@ Without it the release APK is built unsigned.
 ## Screenshots
 
 ### Windows
-Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
+Windows, rendered in demo mode (made-up data, no Bluetooth, placeholder address).
 
 ![Tune with the Sound Profiles dropdown open (demo mode)](docs/sound.png)
 
@@ -78,7 +78,7 @@ Windows 1.4.9, rendered in demo mode (made-up data, no Bluetooth, placeholder ad
 ![About and Privacy (demo mode)](docs/about.png)
 
 ### Android
-Android 1.4.9 on a phone.
+Android on a phone.
 
 <p>
   <img src="docs/android/home.png" width="220" alt="Android Home with the Rock profile">
