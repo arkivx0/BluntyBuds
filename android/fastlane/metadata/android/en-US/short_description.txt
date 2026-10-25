@@ -1,1 +1,1 @@
-Offline earbuds companion: battery, Solo Mode, noise, Tune EQ, AutoEQ, gestures
+Earbuds companion: battery, noise, Tune, balance. Bluetooth only, no internet.

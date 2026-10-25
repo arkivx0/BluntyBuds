@@ -68,8 +68,13 @@ class AutoEqTest {
         assertFalse(AutoEq.suggest(ps, Models.byMark("86")!!).second)       // measured chip unknown
         assertNull(AutoEq.suggest(ps, DeviceModel.UNKNOWN).first)
         assertFalse(AutoEq.suggest(profiles, bes).second)                   // built-in table: no measured chip known yet
-        assertEquals("AutoEQ · NC9 (may differ by hardware revision)", AutoEq.suggestLabel(ps[0], false))
-        assertEquals("AutoEQ · NC9 (this model)", AutoEq.suggestLabel(ps[0], true))
+        assertEquals("Tuned preset (approximate)", AutoEq.suggestLabel(ps[0], false))
+        assertEquals("Tuned preset", AutoEq.suggestLabel(ps[0], true))
+        assertFalse(AutoEq.suggestLabel(ps[0], false).contains(ps[0].model, true))
+        assertFalse(AutoEq.suggestLabel(ps[0], true).contains(ps[0].model, true))
+        assertFalse(AutoEq.suggestLabel(ps[0], false).contains("TOZO", true))
+        assertEquals("Tuned preset 2", AutoEq.extraPresetLabel(2))
+        assertFalse(AutoEq.extraPresetLabel(2).contains(ps[0].model, true))
     }
     @Test fun builtInProfiles() {
         assertTrue(profiles.isNotEmpty())
